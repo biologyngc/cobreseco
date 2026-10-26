@@ -4,6 +4,8 @@ Juego de rol en primera persona para el navegador, con un western postapocalípt
 
 Está hecho con [Three.js](https://threejs.org/) (r160), sin compilación ni dependencias que instalar.
 
+**Jugar en el navegador:** https://biologyngc.github.io/cobreseco/
+
 ## Jugar en local
 
 Los módulos de JavaScript tienen que servirse por HTTP: abrir `index.html` con doble clic no funciona.
