@@ -1,0 +1,8 @@
+# Descargas originales (FBX de Mixamo, paquetes de Sketchfab y Poly Haven, node_modules): pesan ~700 MB
+# y el juego solo usa los GLB ya convertidos de modelos/
+fuentes/
+# Herramientas de conversión que leen de fuentes/
+herramientas/
+__pycache__/
+.DS_Store
+Thumbs.db
