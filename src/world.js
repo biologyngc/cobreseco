@@ -16,6 +16,8 @@ const LLANOS = [
   { x: 150, z: 30, r: 32 },
   { x: 35, z: 165, r: 30 },
   { x: -150, z: -40, r: 9 },
+  { x: -118, z: 78, r: 20 },
+  { x: 118, z: -72, r: 22 },
 ];
 
 const CAMINOS = [
@@ -23,6 +25,8 @@ const CAMINOS = [
   [[0, 0], [8, 55], [22, 115], [35, 160]],
   [[0, 0], [-3, -55], [6, -105]],
   [[0, 0], [-55, -14], [-110, -34], [-142, -40]],
+  [[0, 0], [-40, 28], [-82, 55], [-116, 78]],
+  [[0, 0], [42, -20], [85, -46], [118, -72]],
 ];
 
 function alturaBruta(x, z) {
@@ -1476,6 +1480,161 @@ export function crearMundo(escena) {
     interactivo('hoguera:cuervo', cx, cy + 0.6, cz, 2.2);
     // La chabola de Garza, al sur del fuego (solo la casa delantera del modelo)
     casaCerrada('chabola', { x: cx + 2, z: cz + 17, rot: Math.PI, medida: { escala: 0.55 }, radio: 4.5, filtro: (m) => /ID_0[126]/.test(m.name) }, { x: cx + 2, z: cz + 17, rot: Math.PI, w: 7, d: 5, h: 3.2, color: '#9a7a5a', porche: false, ventanas: 1, techoChapa: true });
+  }
+
+  // ---------- mina del Cobre Viejo (tomada por saqueadores) ----------
+  {
+    const mx = -118, mz = 78, my = altura(mx, mz);
+    const g = new THREE.Group();
+    g.position.set(mx, my, mz);
+    const rocaOsc = mat('#6e4836', { tex: 'piedra' }), rocaMed = mat('#8a6048', { tex: 'piedra' });
+    // Ladera de roca con la bocamina
+    const muro = caja(g, 17, 8, 4.5, rocaOsc, 0, 3.4, 7.2);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8 - 0.5) * 2.6;
+      const r = new THREE.Mesh(new THREE.DodecahedronGeometry(2 + R() * 1.7, 0), i % 2 ? rocaMed : rocaOsc);
+      r.position.set(Math.sin(a) * 7, 1.2 + R() * 1.8, 4.8 + Math.cos(a) * 1.8 + R());
+      r.scale.set(1.3, 1 + R() * 0.7, 1.3);
+      r.rotation.set(R(), R() * 6, R());
+      r.castShadow = r.receiveShadow = true;
+      g.add(r);
+    }
+    // Marco de madera y galería oscura
+    caja(g, 0.5, 3.1, 0.5, maderaOsc, -1.9, 1.55, 2.3);
+    caja(g, 0.5, 3.1, 0.5, maderaOsc, 1.9, 1.55, 2.3);
+    caja(g, 4.7, 0.5, 0.55, maderaOsc, 0, 3.1, 2.3);
+    caja(g, 3.4, 2.7, 0.3, mat('#09090b'), 0, 1.35, 2.5, false);
+    caja(g, 3.8, 0.45, 2.4, maderaOsc, 0, 3.0, 3.6);
+    // Raíles y vagoneta volcada
+    for (const sx of [-0.55, 0.55]) caja(g, 0.1, 0.1, 8, mat('#4a3f38', { metalness: 0.4 }), sx, 0.06, -1.5);
+    const cart = new THREE.Group();
+    cart.position.set(0.3, 0, -3);
+    cart.rotation.z = 0.5;
+    caja(cart, 1.1, 0.7, 1.5, mat('#5a4a40', { metalness: 0.3 }), 0, 0.6, 0);
+    caja(cart, 0.98, 0.5, 1.38, mat('#2a2420'), 0, 0.72, 0);
+    for (const [wx, wz] of [[-0.56, -0.5], [0.56, -0.5], [-0.56, 0.5], [0.56, 0.5]]) {
+      const w = cilindro(cart, 0.22, 0.22, 0.1, 10, mat('#30302e', { metalness: 0.5 }), wx, 0.22, wz);
+      w.rotation.z = Math.PI / 2;
+    }
+    g.add(cart);
+    for (let i = 0; i < 4; i++) {
+      const o = new THREE.Mesh(new THREE.ConeGeometry(0.8 + R() * 0.5, 0.6 + R() * 0.3, 7), mat('#7a5a38'));
+      o.position.set(-5 + R() * 9, 0.3, -3 + R() * 4);
+      o.castShadow = true; o.receiveShadow = true;
+      g.add(o);
+    }
+    // Caja fuerte del capataz y cajón de dinamitero
+    caja(g, 0.9, 0.6, 0.62, mat('#4a4036', { metalness: 0.4, roughness: 0.5 }), -3.4, 0.32, 0.6);
+    caja(g, 0.96, 0.12, 0.68, mat('#6a5a3a', { metalness: 0.6 }), -3.4, 0.64, 0.6);
+    if (!poner('ph_old_military_crate', { largo: 0.95 }, 3.4, 0, -0.4, 0.4, { padre: g })) caja(g, 0.85, 0.6, 0.85, madera, 3.4, 0.3, -0.4);
+    // Hoguera del campamento saqueador
+    const hx = 1.5, hz = 1.8;
+    for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; const p = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16, 0), piedra); p.position.set(hx + Math.cos(a) * 0.6, 0.08, hz + Math.sin(a) * 0.6); p.castShadow = true; g.add(p); }
+    const llamaMina = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.8, 6), new THREE.MeshBasicMaterial({ color: '#ff9a3a', transparent: true, opacity: 0.9, toneMapped: false }));
+    llamaMina.position.set(hx, 0.5, hz);
+    g.add(llamaMina);
+    mundo.animados.push((dt, t) => { const k = 1 + Math.sin(t * 12) * 0.1 + Math.sin(t * 6.7) * 0.07; llamaMina.scale.set(k, 1 + Math.sin(t * 9) * 0.15, k); llamaMina.rotation.y += dt * 2; });
+    mundo.hogueras.push({ pos: new THREE.Vector3(mx + hx, my + 0.6, mz + hz) });
+    escena.add(g);
+    g.traverse((m) => { if (m.isMesh && m !== llamaMina) mundo.ocluyentes.push(m); });
+    colisor(mx - 8.5, mx + 8.5, mz + 5, mz + 9.5, my - 1, my + 8);
+    colisor(mx - 2.2, mx - 1.6, mz + 2.0, mz + 2.6, my - 1, my + 3.1);
+    colisor(mx + 1.6, mx + 2.2, mz + 2.0, mz + 2.6, my - 1, my + 3.1);
+    interactivo('caja_mina', mx - 3.4, my + 0.6, mz + 1.1, 1.4);
+    mundo.puntos.caja_mina = new THREE.Vector3(mx - 3.4, my + 0.8, mz + 0.6);
+    interactivo('cont:cajon_mina', mx + 3.4, my + 0.6, mz - 0.4, 1.4);
+    interactivo('hoguera:mina', mx + hx, my + 0.6, mz + hz, 2);
+  }
+
+  // ---------- granja de los Nogales (manada de perros) ----------
+  {
+    const gx = 118, gz = -72, gy = altura(gx, gz);
+    const g = new THREE.Group();
+    g.position.set(gx, gy, gz);
+    const tabla = mat('#9a7a52', { tex: 'madera' }), tablaGris = mat('#7d6e5c', { tex: 'madera' });
+    // Casa de la granja (cabaña con hueco de puerta)
+    const W = 7, D = 6, H = 3;
+    caja(g, W, 0.2, D, tablaGris, 0, 0.1, 0);
+    caja(g, W, H, 0.25, tabla, 0, H / 2, -D / 2); // fondo
+    caja(g, 0.25, H, D, tabla, -W / 2, H / 2, 0); // oeste
+    caja(g, 0.25, H, D, tabla, W / 2, H / 2, 0); // este
+    // Frente con hueco de puerta
+    caja(g, (W - 1.4) / 2, H, 0.25, tabla, -(W + 1.4) / 4, H / 2, D / 2);
+    caja(g, (W - 1.4) / 2, H, 0.25, tabla, (W + 1.4) / 4, H / 2, D / 2);
+    caja(g, 1.6, 0.8, 0.25, tabla, 0, H - 0.4, D / 2);
+    // Tejado a dos aguas
+    const t1 = caja(g, W + 0.6, 0.2, D * 0.62, tablaGris, 0, H + 0.6, -D * 0.26);
+    t1.rotation.x = -0.5;
+    const t2 = caja(g, W + 0.6, 0.2, D * 0.62, tablaGris, 0, H + 0.6, D * 0.26);
+    t2.rotation.x = 0.5;
+    // Alacena dentro, al fondo
+    caja(g, 1.1, 1.6, 0.5, mat('#6b4a2e', { tex: 'madera' }), -2.2, 0.8, -D / 2 + 0.6);
+    // Pozo seco
+    const pr = cilindro(g, 1.0, 1.1, 1.2, 14, mat('#8a7a66', { tex: 'piedra' }), 5.5, 0.6, 3.5);
+    caja(g, 0.2, 1.5, 0.2, maderaOsc, 4.9, 1.2, 3.5);
+    caja(g, 0.2, 1.5, 0.2, maderaOsc, 6.1, 1.2, 3.5);
+    caja(g, 1.6, 0.2, 0.3, maderaOsc, 5.5, 2.0, 3.5);
+    // Depósito de agua seco
+    if (!poner('deposito_agua', { alto: 3.4 }, -6, 0, 4, 0.5, { padre: g, colision: 0 })) cilindro(g, 1.3, 1.3, 2.6, 12, mat('#7a6a55', { metalness: 0.2 }), -6, 1.3, 4);
+    // Vallas rotas
+    for (let i = 0; i < 6; i++) { const px = -7 + i * 2.6; if (R() < 0.3) continue; caja(g, 0.14, 1.0, 0.14, tablaGris, px, 0.5, 7.5); if (i < 5) caja(g, 2.6, 0.1, 0.1, tablaGris, px + 1.3, 0.7, 7.5); }
+    // Nogales secos
+    for (const [tx, tz] of [[-8, -6], [9, -4]]) if (!poner('ph_dead_tree_trunk', { largo: 3 }, tx, 0, tz, R() * 6, { padre: g })) cilindro(g, 0.2, 0.3, 3, 6, maderaOsc, tx, 1.5, tz);
+    escena.add(g);
+    g.traverse((m) => { if (m.isMesh) mundo.ocluyentes.push(m); });
+    // Colisores de la casa (cuatro paredes) y el pozo
+    colisor(gx - W / 2, gx + W / 2, gz - D / 2 - 0.2, gz - D / 2 + 0.2, gy - 1, gy + H);
+    colisor(gx - W / 2 - 0.2, gx - W / 2 + 0.2, gz - D / 2, gz + D / 2, gy - 1, gy + H);
+    colisor(gx + W / 2 - 0.2, gx + W / 2 + 0.2, gz - D / 2, gz + D / 2, gy - 1, gy + H);
+    colisor(gx + 4.4, gx + 6.6, gz + 2.4, gz + 4.6, gy - 1, gy + 1.2);
+    interactivo('alacena_granja', gx - 2.2, gy + 1.0, gz - D / 2 + 1.1, 1.5);
+    mundo.puntos.alacena_granja = new THREE.Vector3(gx - 2.2, gy + 1.2, gz - D / 2 + 0.6);
+    interactivo('cont:arcon_granja', gx + 2.4, gy + 0.6, gz - D / 2 + 0.7, 1.4);
+  }
+
+  // ---------- caravana calcinada (junto al camino de Ocaso) ----------
+  {
+    const cx = 72, cz = 4, cy = alturaMin(cx, cz, 3.5);
+    const g = new THREE.Group();
+    g.position.set(cx, cy, cz);
+    const quemado = mat('#2a2420'), quemadoClaro = mat('#3c352d'), ceniza = mat('#39342f');
+    // Suelo de ceniza
+    const mancha = new THREE.Mesh(new THREE.CircleGeometry(5, 18), ceniza);
+    mancha.rotation.x = -Math.PI / 2;
+    mancha.position.y = 0.03;
+    mancha.receiveShadow = true;
+    g.add(mancha);
+    // Chasis del carromato quemado
+    caja(g, 2.2, 0.3, 4.2, quemado, 0, 0.6, 0);
+    caja(g, 2.0, 0.6, 1.0, quemadoClaro, 0, 1.0, -1.3); // caja delantera medio entera
+    // Arcos del toldo, calcinados y torcidos
+    for (let i = 0; i < 4; i++) {
+      const arco = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.04, 5, 10, Math.PI), quemado);
+      arco.position.set(0, 0.75, 1.3 - i * 0.9);
+      arco.rotation.set(0, Math.PI / 2, (R() - 0.5) * 0.4);
+      arco.castShadow = true;
+      g.add(arco);
+    }
+    // Ruedas: una en su sitio, otra caída
+    for (const [wx, wz, caida] of [[1.15, -1, 0], [-1.15, -1, 0], [1.15, 1.3, 0], [-1.6, 1.6, 1]]) {
+      const w = cilindro(g, 0.6, 0.6, 0.12, 12, quemadoClaro, wx, caida ? 0.12 : 0.6, wz);
+      w.rotation.z = caida ? 0 : Math.PI / 2;
+      if (caida) w.rotation.x = Math.PI / 2;
+    }
+    // Cajas desperdigadas y un esqueleto junto a los restos
+    for (let i = 0; i < 3; i++) { const b = caja(g, 0.6, 0.6, 0.6, i ? quemadoClaro : madera, -2.5 + R() * 5, 0.3, 2 + R() * 2); b.rotation.y = R(); }
+    const esq = new THREE.Group();
+    esq.position.set(2.2, 0.1, 1.2);
+    esq.rotation.y = 0.8;
+    caja(esq, 0.3, 0.1, 0.7, mat('#d8cdb6'), 0, 0.06, 0);
+    const craneo = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), mat('#e4dbc6'));
+    craneo.position.set(0, 0.1, -0.45);
+    esq.add(craneo);
+    g.add(esq);
+    escena.add(g);
+    colisor(cx - 1.2, cx + 1.2, cz - 2.2, cz + 2.2, cy - 1, cy + 1.3);
+    interactivo('restos_caravana', cx, cy + 0.8, cz - 1.3, 1.8);
+    mundo.puntos.restos_caravana = new THREE.Vector3(cx, cy + 0.8, cz - 1.3);
   }
 
   // ---------- arroyo: huesos y nidos ----------

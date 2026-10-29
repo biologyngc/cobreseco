@@ -7,6 +7,9 @@ export const LUGARES = {
   ocaso: { nombre: 'Gasolinera Ocaso', x: 150, z: 25, r: 34 },
   eco: { nombre: 'Cerro del Eco', x: -150, z: -40, r: 26 },
   cuervo: { nombre: 'Campamento Cuervo', x: 35, z: 165, r: 32 },
+  mina: { nombre: 'Mina del Cobre Viejo', x: -118, z: 78, r: 26 },
+  granja: { nombre: 'Granja de los Nogales', x: 118, z: -72, r: 26 },
+  caravana: { nombre: 'Caravana Calcinada', x: 72, z: 4, r: 15 },
 };
 
 // peso en kilos (la munición no pesa, como en New Vegas fuera del modo extremo);
@@ -28,9 +31,26 @@ export const OBJETOS = {
     nombre: 'Pico de minero', tipo: 'arma', valor: 45, peso: 5, texto: 'De cuando la mina daba cobre. Pega con la Fuerza.',
     arma: { clase: 'cuerpo', dano: 24, cadencia: 0.9, alcance: 2.5, pa: 22, critico: 0.08, zoom: 72, desgaste: 0.25, cuerpo: true },
   },
+  revolver: {
+    nombre: 'Revólver Pacificador', tipo: 'arma', valor: 240, peso: 3, texto: 'Seis balas del 44 y una patada de mula. Cada tiro cuenta.',
+    arma: { clase: 'pistola', dano: 34, cadencia: 0.5, cargador: 6, municion: 'm44', dispersion: 0.016, pa: 20, critico: 0.12, alcance: 120, recarga: 2.4, zoom: 52, desgaste: 0.45 },
+  },
+  subfusil: {
+    nombre: 'Subfusil remachado', tipo: 'arma', valor: 300, peso: 5, texto: 'Hecho con tubos y chatarra. Escupe balas de 9 mm sin apuntar demasiado bien.',
+    arma: { clase: 'pistola', dano: 10, cadencia: 0.1, cargador: 24, municion: 'm9mm', dispersion: 0.03, pa: 11, critico: 0.03, alcance: 70, recarga: 2.2, zoom: 62, desgaste: 0.5 },
+  },
+  carabina: {
+    nombre: 'Carabina de palanca', tipo: 'arma', valor: 340, peso: 6, texto: 'Repetición por palanca, del 44. Rápida y certera a media distancia.',
+    arma: { clase: 'rifle', dano: 30, cadencia: 0.6, cargador: 8, municion: 'm44', dispersion: 0.006, pa: 20, critico: 0.09, alcance: 180, recarga: 2.8, zoom: 32, mira: true, desgaste: 0.5 },
+  },
+  machete: {
+    nombre: 'Machete de chatarra', tipo: 'arma', valor: 55, peso: 2, texto: 'Una hoja de sierra afilada con mango de cuero. Rápido y ligero.',
+    arma: { clase: 'cuerpo', dano: 17, cadencia: 0.5, alcance: 2.3, pa: 16, critico: 0.1, zoom: 72, desgaste: 0.2, cuerpo: true },
+  },
   dinamita: { nombre: 'Cartucho de dinamita', tipo: 'explosivo', valor: 35, peso: 0.5, texto: 'G para encender y lanzar. La mecha dura tres segundos.' },
   m9mm: { nombre: 'Balas de 9 mm', tipo: 'municion', valor: 2, peso: 0 },
   m308: { nombre: 'Balas .308', tipo: 'municion', valor: 4, peso: 0 },
+  m44: { nombre: 'Balas .44', tipo: 'municion', valor: 3, peso: 0 },
   cartucho: { nombre: 'Cartuchos del 12', tipo: 'municion', valor: 3, peso: 0 },
   suero: { nombre: 'Jeringa de suero', tipo: 'consumible', valor: 50, cura: 40, miembros: 30, peso: 0, texto: 'Cura 40 PV poco a poco y algo de los miembros heridos.' },
   agua: { nombre: 'Agua turbia', tipo: 'consumible', valor: 8, cura: 8, sed: 150, peso: 1, texto: 'Cura 8 PV y quita algo de sed.' },
@@ -56,6 +76,8 @@ export const ARMAS_NPC = {
   revolver: { modelo: 'pistola9', dano: 15, cadencia: 1.1, alcance: 55, precision: 0.55, cargador: 6, recarga: 2.6, ideal: 17 },
   rifle: { modelo: 'rifle308', dano: 20, cadencia: 1.7, alcance: 80, precision: 0.5, cargador: 5, recarga: 3.0, ideal: 26, rifle: true },
   escopeta: { modelo: 'escopeta', dano: 18, cadencia: 1.5, alcance: 20, precision: 0.62, cargador: 2, recarga: 2.6, ideal: 8, rifle: true },
+  subfusil: { modelo: 'subfusil', dano: 6, cadencia: 0.55, alcance: 48, precision: 0.4, cargador: 24, recarga: 2.4, ideal: 13 },
+  carabina: { modelo: 'carabina', dano: 22, cadencia: 1.4, alcance: 95, precision: 0.54, cargador: 8, recarga: 2.8, ideal: 32, rifle: true },
 };
 
 // Umbral de valentía: huyen cuando su vida baja de esta fracción (tabla del .exe de New Vegas).
@@ -84,6 +106,21 @@ export const TIPOS = {
     nombre: 'Garza', forma: 'humano', nivel: 8, vida: 150, dt: 6, dano: 20, alcance: 70, cadencia: 1.7, velocidad: 4.3,
     criatura: false, valentia: 'temerario', percepcion: 7, distancia: true, precision: 0.5, rifle: true, arma: 'rifle', dinamita: 2,
     ropa: '#1d1c22', piel: '#8f5d43', sombrero: 'ala', acento: '#c9c2b4', botin: { chaleco: 1, m308: 10, cobres: 90 },
+  },
+  // Saqueadores: banda propia que tomó la mina. Son hostiles de salida y no se rinden con Garza.
+  salteador: {
+    nombre: 'Saqueador', forma: 'humano', nivel: 5, vida: 70, dt: 2, dano: 9, alcance: 48, cadencia: 1.3, velocidad: 4.6,
+    criatura: false, valentia: 'cauto', percepcion: 6, distancia: true, precision: 0.42, arma: 'subfusil', faccion: 'saqueadores', hostil: true,
+    ropa: '#3b3a33', piel: '#9c6b4a', sombrero: 'panuelo', acento: '#7a6a2a', botin: { m9mm: 12, cobres: 18 },
+  },
+  cabecilla: {
+    nombre: 'Cabecilla saqueador', forma: 'humano', nivel: 7, vida: 135, dt: 4, dano: 18, alcance: 95, cadencia: 1.6, velocidad: 4.4,
+    criatura: false, valentia: 'valiente', percepcion: 7, distancia: true, precision: 0.54, rifle: true, arma: 'carabina', dinamita: 1,
+    faccion: 'saqueadores', hostil: true, ropa: '#26251f', piel: '#86583c', sombrero: 'ala', acento: '#b08a3a', botin: { chaleco: 1, m44: 10, cobres: 70 },
+  },
+  perro_alfa: {
+    nombre: 'Perro alfa', forma: 'perro', nivel: 5, vida: 70, dt: 1, dano: 12, alcance: 1.9, cadencia: 0.85,
+    velocidad: 7.2, criatura: true, valentia: 'valiente', percepcion: 8, color: '#4e4133', vientre: '#746050', escala: 1.3, botin: { carne: 2 },
   },
 };
 
@@ -114,6 +151,16 @@ export const ENEMIGOS = [
   { id: 'cuervo2', tipo: 'cuervo', x: 30, z: 173, campamento: true },
   { id: 'cuervo3', tipo: 'cuervo', x: 45, z: 171, campamento: true },
   { id: 'garza', tipo: 'garza', x: 37, z: 168, yaw: Math.PI, campamento: true, nombre: 'Garza' },
+  // Mina del Cobre Viejo: tomada por los saqueadores
+  { id: 'salteador0', tipo: 'salteador', x: -112, z: 84, zona: 'mina' },
+  { id: 'salteador1', tipo: 'salteador', x: -120, z: 88, zona: 'mina' },
+  { id: 'salteador2', tipo: 'salteador', x: -124, z: 74, arma: 'pistola', zona: 'mina' },
+  { id: 'cabecilla0', tipo: 'cabecilla', x: -120, z: 70, yaw: 0, zona: 'mina', nombre: 'Rufo, el Cabecilla' },
+  // Granja de los Nogales: manada de perros salvajes
+  { id: 'perro_g0', tipo: 'perro', x: 114, z: -68, zona: 'granja' },
+  { id: 'perro_g1', tipo: 'perro', x: 122, z: -70, zona: 'granja' },
+  { id: 'perro_g2', tipo: 'perro', x: 120, z: -78, zona: 'granja' },
+  { id: 'perro_g3', tipo: 'perro_alfa', x: 116, z: -76, zona: 'granja' },
 ];
 
 export const MISIONES = {
@@ -160,10 +207,37 @@ export const MISIONES = {
     ],
     premio: { xp: 300, cobres: 150 },
   },
+  // Misiones secundarias: se descubren al llegar a cada sitio nuevo
+  q6: {
+    titulo: 'El filón olvidado',
+    etapas: [
+      { texto: 'Despeja de saqueadores la Mina del Cobre Viejo, al oeste.', obj: 'mina', cuenta: 4 },
+      { texto: 'Registra la caja del capataz, en la bocamina.', obj: 'caja_mina' },
+    ],
+    premio: { xp: 250, cobres: 120, objetos: { kit_reparacion: 1, m44: 24 } },
+    secundaria: true,
+  },
+  q7: {
+    titulo: 'Rastro en el camino',
+    etapas: [
+      { texto: 'Registra la caravana calcinada, junto al camino de la gasolinera Ocaso.', obj: 'restos_caravana' },
+    ],
+    premio: { xp: 120, cobres: 60, objetos: { chatarra: 2 } },
+    secundaria: true,
+  },
+  q8: {
+    titulo: 'Los perros de los Nogales',
+    etapas: [
+      { texto: 'Acaba con la manada de perros de la Granja de los Nogales, al sureste.', obj: 'granja', cuenta: 4 },
+      { texto: 'Registra la alacena de la casa de la granja.', obj: 'alacena_granja' },
+    ],
+    premio: { xp: 200, objetos: { agua_limpia: 2, machete: 1, chatarra: 2 } },
+    secundaria: true,
+  },
 };
 
-export const TIENDA_PAZ = { m9mm: 60, m308: 20, cartucho: 24, suero: 4, agua: 6, agua_limpia: 2, cecina: 3, horquilla: 8, dinamita: 3, kit_reparacion: 2, chatarra: 4, escopeta: 1, pico: 1, guardapolvo: 1, fusible: 1 };
-export const TIENDA_BUHONERO = { agua: 4, cecina: 4, suero: 2, m9mm: 40, m308: 10, cartucho: 16, horquilla: 5, dinamita: 2, polvora: 2, chatarra: 3, escopeta: 1 };
+export const TIENDA_PAZ = { m9mm: 60, m308: 20, m44: 30, cartucho: 24, suero: 4, agua: 6, agua_limpia: 2, cecina: 3, horquilla: 8, dinamita: 3, kit_reparacion: 2, chatarra: 4, escopeta: 1, pico: 1, machete: 1, revolver: 1, guardapolvo: 1, fusible: 1 };
+export const TIENDA_BUHONERO = { agua: 4, cecina: 4, suero: 2, m9mm: 40, m308: 10, m44: 12, cartucho: 16, horquilla: 5, dinamita: 2, polvora: 2, chatarra: 3, escopeta: 1, subfusil: 1, revolver: 1 };
 
 // Ventajas: una cada dos niveles. req: nivel mínimo y atributos.
 export const VENTAJAS = {
@@ -197,6 +271,8 @@ export const CONTENEDORES = {
   cajas_cuervo: { nombre: 'Cajas de los Cuervos', objetos: { polvora: 2, dinamita: 2, m9mm: 20, cobres: 35 } },
   armario_ocaso: { nombre: 'Archivador de Benito', objetos: { chatarra: 4, agua: 1, kit_reparacion: 1 } },
   caja_repetidor: { nombre: 'Caja de herramientas', objetos: { chatarra: 2, polvora: 1 } },
+  cajon_mina: { nombre: 'Cajón de dinamitero', objetos: { polvora: 2, dinamita: 1, chatarra: 2 } },
+  arcon_granja: { nombre: 'Arcón de los Nogales', cerradura: 30, objetos: { agua_limpia: 1, chatarra: 2, m44: 8 } },
 };
 
 // Karma y fama, con nombres del pueblo

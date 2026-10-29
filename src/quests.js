@@ -140,6 +140,8 @@ function alEntrarEtapa(id) {
   if (id === 'q4' && m.etapa === 0 && cuenta('fusible') > 0) avanzar('q4', 1);
   if (id === 'q4' && m.etapa <= 1 && S.flags.repetidor) avanzar('q4', 2);
   if (id === 'q5' && m.etapa === 0 && S.flags.resolucion) avanzar('q5', 1);
+  if (id === 'q6' && m.etapa === 0) { m.cuenta = Math.min(4, S.flags.salteadores || 0); if (m.cuenta >= 4) avanzar('q6', 1); }
+  if (id === 'q8' && m.etapa === 0) { m.cuenta = Math.min(4, S.flags.perrosGranja || 0); if (m.cuenta >= 4) avanzar('q8', 1); }
 }
 
 function evento(tipo, d = {}) {
@@ -159,6 +161,26 @@ function evento(tipo, d = {}) {
         m.cuenta++;
         G.ui.toast(`Lagartos: ${Math.min(m.cuenta, 6)}/6`);
         if (m.cuenta >= 6) avanzar('q2', 1);
+      }
+    }
+    // Saqueadores de la mina (q6)
+    if (a.equipo === 'saqueadores') {
+      S.flags.salteadores = (S.flags.salteadores || 0) + 1;
+      if (etapa('q6') === 0) {
+        const m = mision('q6');
+        m.cuenta++;
+        G.ui.toast(`Saqueadores: ${Math.min(m.cuenta, 4)}/4`);
+        if (m.cuenta >= 4) avanzar('q6', 1);
+      }
+    }
+    // Manada de la granja (q8)
+    if (a.def?.zona === 'granja' && a.tipo?.forma === 'perro') {
+      S.flags.perrosGranja = (S.flags.perrosGranja || 0) + 1;
+      if (etapa('q8') === 0) {
+        const m = mision('q8');
+        m.cuenta++;
+        G.ui.toast(`Perros: ${Math.min(m.cuenta, 4)}/4`);
+        if (m.cuenta >= 4) avanzar('q8', 1);
       }
     }
     encargos.muerte(a);
@@ -211,6 +233,13 @@ function textoInteractivo(id) {
       if (!f.cajaAbierta) return 'Caja fuerte (se abre desde el terminal)';
       return f.cajaSaqueada ? null : 'Registrar la caja fuerte';
     case 'valvula': return f.valvula ? null : 'Coger la válvula roja';
+    case 'caja_mina':
+      if (f.cajaMina) return null;
+      return mision('q6') && etapa('q6') === 0 ? 'Caja del capataz (despeja la mina primero)' : 'Registrar la caja del capataz';
+    case 'restos_caravana': return f.restosCaravana ? null : 'Registrar la caravana calcinada';
+    case 'alacena_granja':
+      if (f.alacenaGranja) return null;
+      return mision('q8') && etapa('q8') === 0 ? 'Alacena (echa a la manada primero)' : 'Registrar la alacena';
     case 'esqueleto': return f.llave ? null : 'Registrar el esqueleto';
     case 'repetidor':
       if (f.repetidor) return null;
@@ -297,6 +326,34 @@ function usarInteractivo(id) {
       dar('llave_ocaso');
       G.audio?.recoger();
       G.ui.toast('Un mono de trabajo con el nombre «Benito». En el bolsillo: una llave con la etiqueta OFICINA.');
+      guardar();
+      break;
+    case 'caja_mina':
+      if (mision('q6') && etapa('q6') === 0) { G.audio?.error(); G.ui.toast('Aún hay saqueadores en la mina.'); break; }
+      f.cajaMina = true;
+      dar('m44', 12); dar('polvora', 1); S.cobres += 60;
+      G.audio?.recoger();
+      G.ui.toast('En la caja del capataz: 12 balas .44, pólvora y 60 cobres');
+      nota('La caja del viejo capataz de la mina. Cobre ya no queda, pero algo es algo.');
+      if (etapa('q6') >= 0) completar('q6');
+      guardar();
+      break;
+    case 'restos_caravana':
+      f.restosCaravana = true;
+      dar('subfusil'); dar('m9mm', 20); dar('chatarra', 2); S.cobres += 40;
+      G.audio?.recoger();
+      G.ui.toast('Entre los restos: un subfusil, 20 balas de 9 mm, chatarra y 40 cobres');
+      nota('La caravana ardió hace semanas. Por las marcas, no fue un accidente: la asaltaron.');
+      if (etapa('q7') >= 0) completar('q7');
+      guardar();
+      break;
+    case 'alacena_granja':
+      if (mision('q8') && etapa('q8') === 0) { G.audio?.error(); G.ui.toast('La manada aún ronda la granja.'); break; }
+      f.alacenaGranja = true;
+      dar('agua_limpia'); dar('cecina', 2); dar('chatarra'); S.cobres += 25;
+      G.audio?.recoger();
+      G.ui.toast('En la alacena: agua limpia, cecina, chatarra y 25 cobres');
+      if (etapa('q8') >= 0) completar('q8');
       guardar();
       break;
     case 'repetidor':
@@ -431,7 +488,7 @@ function saquear(a) {
   const partes = [];
   const botin = { ...a.botin };
   // El arma que llevaba (usada: tiene poco estado)
-  const ARMA_ITEM = { pistola: 'pistola9', revolver: 'pistola9', rifle: 'rifle308', escopeta: 'escopeta' };
+  const ARMA_ITEM = { pistola: 'pistola9', revolver: 'revolver', rifle: 'rifle308', escopeta: 'escopeta', subfusil: 'subfusil', carabina: 'carabina' };
   if (a.armaNPC && ARMA_ITEM[a.armaNPC.id] && !botin[ARMA_ITEM[a.armaNPC.id]]) botin[ARMA_ITEM[a.armaNPC.id]] = 1;
   for (const [id, n] of Object.entries(botin)) {
     if (id === 'cobres') { S.cobres += n; partes.push(`${n} cobres`); } else { dar(id, n); partes.push(`${OBJETOS[id].nombre}${n > 1 ? ` ×${n}` : ''}`); }
@@ -491,6 +548,10 @@ function actualizar(dt) {
       G.ui.lugar(l.nombre);
       nota(`Descubierto: ${l.nombre}.`);
       ganarXP(10, `Descubierto: ${l.nombre}`);
+      // Las secundarias arrancan al llegar al sitio
+      if (id === 'mina' && !mision('q6')) empezar('q6');
+      else if (id === 'caravana' && !mision('q7')) empezar('q7');
+      else if (id === 'granja' && !mision('q8')) empezar('q8');
       guardar();
     }
   }

@@ -11,7 +11,7 @@ import { clamp, lerp } from './noise.js';
 import { modeloArma, crearArmas } from './armas.js';
 
 const ARRIBA = new THREE.Vector3(0, 1, 0);
-const ORDEN_ARMAS = ['pistola9', 'rifle308', 'escopeta', 'pico'];
+const ORDEN_ARMAS = ['pistola9', 'revolver', 'subfusil', 'rifle308', 'carabina', 'escopeta', 'pico', 'machete'];
 
 export class Jugador {
   constructor(camara, lienzo) {
@@ -181,6 +181,10 @@ export class Jugador {
         case 'Digit2': this.cambiarArma('rifle308'); break;
         case 'Digit3': this.cambiarArma('escopeta'); break;
         case 'Digit4': this.cambiarArma('pico'); break;
+        case 'Digit5': this.cambiarArma('revolver'); break;
+        case 'Digit6': this.cambiarArma('subfusil'); break;
+        case 'Digit7': this.cambiarArma('carabina'); break;
+        case 'Digit8': this.cambiarArma('machete'); break;
         case 'Space': if (this.enSuelo) { this.velY = 6.2; this.enSuelo = false; } break;
         default: break;
       }
@@ -461,7 +465,7 @@ export class Jugador {
           if (puntuacion < mejorD) { mejorD = puntuacion; mejor = a; parteMejor = parte; puntoMejor = p; }
         }
       }
-      G.s.cnd.pico = Math.max(0, (G.s.cnd.pico ?? 100) - arma.desgaste);
+      G.s.cnd[arma.id] = Math.max(0, (G.s.cnd[arma.id] ?? 100) - arma.desgaste);
       this.ruidoDisparo = 25;
       if (!mejor) {
         G.audio?.pico(false);

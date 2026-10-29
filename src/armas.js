@@ -69,6 +69,76 @@ function pico() {
   return g;
 }
 
+// Revólver: cañón, tambor y empuñadura de madera
+function revolver() {
+  const g = new THREE.Group();
+  tubo(g, 0.011, 0.19, metal, 0, 0.02, -0.12);
+  caja(g, 0.014, 0.016, 0.19, metalClaro, 0, 0.036, -0.12);
+  caja(g, 0.03, 0.055, 0.1, metal, 0, 0.012, -0.01);
+  const tambor = malla(g, new THREE.CylinderGeometry(0.028, 0.028, 0.052, 12), metalClaro, 0, 0.012, 0.0);
+  tambor.rotation.z = Math.PI / 2;
+  const grip = caja(g, 0.028, 0.11, 0.05, maderaOsc, 0, -0.055, 0.052);
+  grip.rotation.x = 0.33;
+  caja(g, 0.026, 0.06, 0.055, metal, 0, 0.0, 0.03);
+  g.userData.boca = new THREE.Vector3(0, 0.02, -0.22);
+  g.userData.expulsion = new THREE.Vector3(0.03, 0.02, 0.0);
+  g.userData.piezas = {};
+  return g;
+}
+
+// Subfusil de chatarra: camisa perforada, cajón, cargador recto y culata de alambre
+function subfusil() {
+  const g = new THREE.Group();
+  tubo(g, 0.009, 0.3, metal, 0, 0.02, -0.2);
+  tubo(g, 0.017, 0.16, metalClaro, 0, 0.02, -0.15, 8);
+  caja(g, 0.04, 0.05, 0.26, metal, 0, 0.0, 0.02);
+  caja(g, 0.03, 0.024, 0.13, metalClaro, 0.004, 0.036, 0.0);
+  caja(g, 0.026, 0.12, 0.05, metal, 0, -0.085, 0.03); // cargador (fijo, a la vista)
+  const grip = caja(g, 0.028, 0.09, 0.04, maderaOsc, 0, -0.05, 0.12);
+  grip.rotation.x = 0.3;
+  caja(g, 0.02, 0.055, 0.02, metal, 0, 0.0, 0.17);
+  for (const sx of [-0.02, 0.02]) tubo(g, 0.006, 0.12, metal, sx, -0.012, 0.2, 6);
+  g.userData.boca = new THREE.Vector3(0, 0.02, -0.36);
+  g.userData.expulsion = new THREE.Vector3(0.03, 0.02, 0.0);
+  g.userData.piezas = {};
+  return g;
+}
+
+// Carabina de palanca: cañón largo con tubo de carga, palanca y maderas
+function carabina() {
+  const g = new THREE.Group();
+  tubo(g, 0.01, 0.6, metal, 0, 0.03, -0.32);
+  tubo(g, 0.008, 0.5, metalClaro, 0, 0.013, -0.3);
+  caja(g, 0.03, 0.06, 0.16, metalClaro, 0, 0.012, 0.0);
+  const palanca = new THREE.Group();
+  palanca.position.set(0, -0.03, 0.04);
+  caja(palanca, 0.018, 0.05, 0.018, metal, 0, -0.02, 0.0);
+  const aro = malla(palanca, new THREE.TorusGeometry(0.028, 0.006, 6, 12), metal, 0, -0.06, 0.0);
+  aro.rotation.x = Math.PI / 2;
+  g.add(palanca);
+  caja(g, 0.028, 0.03, 0.22, madera, 0, 0.012, -0.2);
+  const culata = caja(g, 0.034, 0.08, 0.26, madera, 0, -0.022, 0.2);
+  culata.rotation.x = 0.1;
+  g.userData.boca = new THREE.Vector3(0, 0.03, -0.62);
+  g.userData.expulsion = new THREE.Vector3(0.025, 0.04, 0.0);
+  g.userData.piezas = {};
+  return g;
+}
+
+// Machete de chatarra: hoja de sierra con mango de cuero (apunta hacia arriba, como el pico)
+function machete() {
+  const g = new THREE.Group();
+  const mango = malla(g, new THREE.CylinderGeometry(0.016, 0.019, 0.14, 8), maderaOsc, 0, -0.03, 0);
+  mango.castShadow = false;
+  caja(g, 0.07, 0.013, 0.022, metal, 0, 0.05, 0);
+  caja(g, 0.04, 0.34, 0.006, metalClaro, 0.006, 0.24, 0);
+  const punta = malla(g, new THREE.ConeGeometry(0.023, 0.09, 4), metalClaro, 0.006, 0.44, 0);
+  punta.rotation.y = Math.PI / 4;
+  g.userData.boca = new THREE.Vector3(0, 0.42, -0.02);
+  g.userData.piezas = {};
+  return g;
+}
+
 export function modeloDinamita() {
   const g = new THREE.Group();
   tubo(g, 0.017, 0.2, rojoDinamita, 0, 0, 0);
@@ -87,6 +157,10 @@ export function modeloArma(id, mano = false) {
   let g = null;
   if (id === 'escopeta') g = escopeta();
   else if (id === 'pico') g = pico();
+  else if (id === 'revolver') g = revolver();
+  else if (id === 'subfusil') g = subfusil();
+  else if (id === 'carabina') g = carabina();
+  else if (id === 'machete') g = machete();
   else {
     const def = id === 'pistola9' ? { n: 'ph_service_pistol', largo: 0.24, ajuste: [0, -0.02, 0.02] } : { n: 'ph_bolt_action_rifle_7_62', largo: 1.05, ajuste: [0, -0.03, -0.2] };
     if (id === 'pistola9') recortar('ph_service_pistol', [-0.06, -0.06, -0.03], [0.18, 0.09, 0.03]);

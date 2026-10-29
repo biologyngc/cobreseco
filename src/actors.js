@@ -9,7 +9,7 @@ import { crear, crearPersonaje, clipsPara, gltf } from './modelos.js';
 
 // Modelo descargado de cada personaje o tipo de enemigo (Mixamo y Sketchfab).
 const MODELO_PERSONAJE = { ines: 'mx_ines', ocana: 'mx_ocana', lupe: 'mx_lupe', paz: 'mx_paz', chema: 'mx_chema', nieves: 'mx_nieves', garza: 'mx_garza', buhonero: 'mx_cuervo1', viajera: 'mx_paz' };
-const MODELO_ANIMAL = { lagarto: { n: 'geco', largo: 1.35 }, lagarto_alfa: { n: 'geco', largo: 1.35 }, perro: { n: 'lobo', largo: 1.45 } };
+const MODELO_ANIMAL = { lagarto: { n: 'geco', largo: 1.35 }, lagarto_alfa: { n: 'geco', largo: 1.35 }, perro: { n: 'lobo', largo: 1.45 }, perro_alfa: { n: 'lobo', largo: 1.45 } };
 
 const cache = new Map();
 function m(color, extra = {}) {
@@ -171,7 +171,7 @@ export class Actor {
     // Vecino: personaje con nombre del pueblo (se habla con él); esencial: no muere, cae inconsciente
     this.vecino = !tipo;
     this.esencial = !!def.esencial;
-    this.equipo = tipo ? (tipo.criatura ? 'fauna' : 'cuervos') : 'pueblo';
+    this.equipo = tipo ? (tipo.criatura ? 'fauna' : (tipo.faccion || 'cuervos')) : 'pueblo';
     this.nivel = tipo ? tipo.nivel : def.nivel || 4;
     this.vidaMax = tipo ? tipo.vida : def.vida || 80;
     this.vida = this.vidaMax;
@@ -224,7 +224,7 @@ export class Actor {
   ponerModelo() {
     let visual = null;
     const tipo = this.def.tipo;
-    if (MODELO_PERSONAJE[this.id] || tipo === 'cuervo') {
+    if (MODELO_PERSONAJE[this.id] || (tipo && TIPOS[tipo] && !TIPOS[tipo].criatura)) {
       const n = MODELO_PERSONAJE[this.id] || (Number(this.id.replace(/\D/g, '')) % 2 ? 'mx_cuervo2' : 'mx_cuervo1');
       visual = crearPersonaje(n, 1.78);
       if (visual) {
@@ -364,6 +364,8 @@ export class Actor {
     if (this.equipo === 'fauna') return true;
     // El desertor de los encargos va por libre: es hostil aunque la banda no lo sea
     if (this.equipo === 'cuervos') return !!this.def.hostil || !!G.s.flags.cuervosHostiles;
+    // Otras bandas (saqueadores): hostiles de salida, sin relación con Garza
+    if (this.equipo !== 'pueblo') return !!this.def.hostil || !!this.tipo?.hostil;
     // Vecinos: los armados pelean si hay un crimen sin pagar; los demás solo huyen
     return !!this.enfadado || (!!G.s.crimen?.activo && this.armado);
   }

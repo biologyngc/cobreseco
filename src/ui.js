@@ -443,7 +443,7 @@ export function crearUI() {
             <dt>C</dt><dd>Agacharse (sigilo)</dd>
             <dt>Q</dt><dd>M.I.R.A.: congela el tiempo y apunta por partes</dd>
             <dt>R · H</dt><dd>Recargar o soltar un encasquillamiento · inyectarse suero</dd>
-            <dt>1 – 4</dt><dd>Pistola, rifle, escopeta, pico · rueda del ratón para cambiar</dd>
+            <dt>1 – 8</dt><dd>Armas (rueda del ratón para cambiar): pistola, rifle, escopeta, pico, revólver, subfusil, carabina, machete</dd>
             <dt>Z · G</dt><dd>Enfundar el arma · lanzar dinamita</dd>
             <dt>Tab · M</dt><dd>Brazal · brazal en el mapa</dd>
             <dt>T · L</dt><dd>Esperar · linterna del brazal</dd>
