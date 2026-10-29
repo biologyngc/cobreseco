@@ -9,7 +9,8 @@ import { crear, crearPersonaje, clipsPara, gltf } from './modelos.js';
 
 // Modelo descargado de cada personaje o tipo de enemigo (Mixamo y Sketchfab).
 const MODELO_PERSONAJE = { ines: 'mx_ines', ocana: 'mx_ocana', lupe: 'mx_lupe', paz: 'mx_paz', chema: 'mx_chema', nieves: 'mx_nieves', garza: 'mx_garza', buhonero: 'mx_cuervo1', viajera: 'mx_paz' };
-const MODELO_ANIMAL = { lagarto: { n: 'geco', largo: 1.35 }, lagarto_alfa: { n: 'geco', largo: 1.35 }, perro: { n: 'lobo', largo: 1.45 }, perro_alfa: { n: 'lobo', largo: 1.45 } };
+// giro: el geco viene con la cabeza hacia -Z; se gira 180° para que mire hacia donde anda (+Z, como el lobo)
+const MODELO_ANIMAL = { lagarto: { n: 'geco', largo: 1.35, giro: Math.PI }, lagarto_alfa: { n: 'geco', largo: 1.35, giro: Math.PI }, perro: { n: 'lobo', largo: 1.45 }, perro_alfa: { n: 'lobo', largo: 1.45 } };
 
 const cache = new Map();
 function m(color, extra = {}) {
@@ -238,6 +239,14 @@ export class Actor {
       visual = crear(m.n, { largo: m.largo });
       if (visual) {
         this.animal = true;
+        // Orientar la cabeza hacia +Z y centrar el cuerpo sobre el punto del actor
+        if (m.giro) {
+          visual.rotation.y = m.giro;
+          visual.updateMatrixWorld(true);
+          const c = new THREE.Box3().setFromObject(visual).getCenter(new THREE.Vector3());
+          visual.position.x -= c.x;
+          visual.position.z -= c.z;
+        }
         this.mixer = new THREE.AnimationMixer(visual);
         const anims = gltf(m.n).animations;
         this.acciones = {};
