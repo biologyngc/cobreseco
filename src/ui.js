@@ -1,7 +1,7 @@
 // Interfaz: HUD, brújula, diálogos, cuaderno, comercio, terminal, ganzúa, M.I.R.A. y pantallas.
 import * as THREE from 'three';
 import { G, guardar, cuenta } from './state.js';
-import { OBJETOS, MISIONES, LUGARES, CONTENEDORES } from './data.js';
+import { OBJETOS, MISIONES, LUGARES, CONTENEDORES, COMPANEROS } from './data.js';
 import { xpParaNivel, vidaMaxima, pamMaximos, estadoDeteccion, PARTES, cargaMaxima, pesoInventario, specialEfectivo, tramo, TRAMOS_SED, TRAMOS_SUENO, estadoMaximoReparando } from './rules.js';
 import { clamp } from './noise.js';
 
@@ -85,7 +85,7 @@ export function crearUI() {
     $('#pista-clic').hidden = true;
   }
   function cerrarModal() {
-    for (const id of ['dialogo', 'trueque', 'terminal', 'ganzua', 'contenedor', 'fabricar', 'esperar']) $('#' + id).hidden = true;
+    for (const id of ['dialogo', 'trueque', 'terminal', 'ganzua', 'contenedor', 'fabricar', 'esperar', 'caravana', 'blackjack']) $('#' + id).hidden = true;
     G.brazal?.cerrar();
     G.modal = null;
     G.hablandoCon = null;
@@ -96,6 +96,7 @@ export function crearUI() {
     ui.bloqueo(false);
   }
   ui.cerrarModal = cerrarModal;
+  ui.abrirModal = abrirModal;
 
   // ---------- diálogo ----------
   let dlg = null;
@@ -112,6 +113,16 @@ export function crearUI() {
   function mostrarNodo(clave) {
     if (clave === null || clave === undefined) { cerrarModal(); return; }
     if (clave === 'trueque') { abrirTrueque(dlg.actor); return; }
+    // 'panel:…' cambia el diálogo por otro panel: una mesa del casino o el equipo de un compañero
+    if (clave.startsWith('panel:')) {
+      const p = clave.slice(6);
+      $('#dialogo').hidden = true;
+      G.hablandoCon = null;
+      if (p === 'caravana') G.casino.abrirCaravana(dlg.actor);
+      else if (p === 'blackjack') G.casino.abrirBlackjack(dlg.actor);
+      else if (p.startsWith('cont:')) ui.abrirContenedor(p.slice(5));
+      return;
+    }
     const n = dlg.arbol[clave];
     if (!n) { cerrarModal(); return; }
     $('#dlg-texto').textContent = n.texto;
@@ -250,9 +261,15 @@ export function crearUI() {
               <li><span>Karma <small>${S.karma > 0 ? '+' : ''}${S.karma}</small></span><b>${sis.tituloKarma()}</b></li>
               <li><span>En Cobreseco</span><b>${sis.estadoFama('pueblo')}</b></li>
               <li><span>Con los Cuervos</span><b>${sis.estadoFama('cuervos')}</b></li>
+              <li><span>Con el Riel</span><b>${sis.estadoFama('riel')}</b></li>
               <li><span>Bajas</span><b>${S.bajas}</b></li>
               <li><span>Lugares descubiertos</span><b>${Object.keys(S.lugares).length} de ${Object.keys(LUGARES).length}</b></li>
-            </ul></div>
+            </ul>
+            <h4>Compañeros</h4><ul class="br-lista">${Object.entries(COMPANEROS).filter(([id]) => S.companeros[id]?.reclutado).map(([id, cp]) => {
+              const a = G.actores.find((x) => x.id === id);
+              const estado = a?.estado === 'inconsciente' ? 'caído' : S.companeros[id].siguiendo ? 'te sigue' : 'esperando';
+              return `<li><span>${cp.nombre}<small>${cp.ventaja}: ${cp.texto}</small></span><b>${estado}</b></li>`;
+            }).join('') || '<li class="br-vacio"><span>Viajas solo.</span></li>'}</ul></div>
           <div><h4>Habilidades${S.puntos ? ` · ${S.puntos} por repartir` : ''}</h4>
             <ul class="br-lista">${Object.entries(HAB).map(([k, n]) => `<li><span>${n}</span><b>${S.hab[k]}</b>${S.puntos && S.hab[k] < 100 ? `<button class="br-boton mas" data-sube="${k}" aria-label="Subir ${n}">+</button>` : ''}</li>`).join('')}</ul>
             <h4>Ventajas${S.ventajasPendientes ? ` · elige ${S.ventajasPendientes}` : ''}</h4>
@@ -960,6 +977,7 @@ export function crearUI() {
       return true;
     }
     if (!G.modal) return false;
+    if (G.modal === 'caravana' || G.modal === 'blackjack') return G.casino.tecla(e);
     if (G.modal === 'esperar' && c === 'Enter') { $('#es-ok').click(); return true; }
     if (G.modal === 'dialogo') {
       const n = parseInt(e.key, 10);
@@ -1105,7 +1123,9 @@ export function crearUI() {
       const d = Math.hypot(l.x - J.pos.x, l.z - J.pos.z);
       enBrujula(marcasLug[i], Math.atan2(l.x - J.pos.x, l.z - J.pos.z), S.lugares[id] && d > l.r * 0.6 && d < 260);
     });
-    const hostiles = G.actores.filter((a) => a.vivo && a.hostil && (a.estado === 'combate' || a.puntos > -20) && a.pos.distanceTo(J.pos) < 70);
+    // Olfato de Canelo: los enemigos cercanos salen aunque no te hayan visto
+    const olfato = G.juego.siguiendo?.('canelo');
+    const hostiles = G.actores.filter((a) => a.vivo && a.hostil && a.pos.distanceTo(J.pos) < 70 && (a.estado === 'combate' || a.puntos > -20 || (olfato && a.pos.distanceTo(J.pos) < 50)));
     marcasEne.forEach((m, i) => {
       const a = hostiles[i];
       if (!a) { m.style.display = 'none'; return; }
@@ -1140,6 +1160,17 @@ export function crearUI() {
     if (clave !== ui.ultimaCondicion) {
       ui.ultimaCondicion = clave;
       $('#condicion').innerHTML = etiquetas.map(([t, g]) => `<span class="${g ? 'grave' : ''}">${t}</span>`).join('');
+    }
+    // Compañeros que van contigo, con su vida
+    const comps = G.actores.filter((a) => a.reclutado);
+    const claveComp = comps.map((a) => `${a.id}:${Math.round((a.vida / a.vidaMax) * 20)}:${a.estado}:${S.companeros[a.id].siguiendo}`).join('|');
+    if (claveComp !== ui.ultimaComp) {
+      ui.ultimaComp = claveComp;
+      $('#companeros').innerHTML = comps.map((a) => {
+        const caido = a.estado === 'inconsciente';
+        const nota = caido ? ' · caído' : S.companeros[a.id].siguiendo ? '' : ' · esperando';
+        return `<div class="${caido ? 'caido' : ''}">${a.nombre}${nota}<i><i style="width:${caido ? 0 : clamp(a.vida / a.vidaMax, 0, 1) * 100}%"></i></i></div>`;
+      }).join('');
     }
     $('#buscado').hidden = !S.crimen?.activo;
     if (S.crimen?.activo) $('#buscado').textContent = `Cobreseco te busca · multa de ${S.crimen.multa} cobres`;

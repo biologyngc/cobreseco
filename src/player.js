@@ -11,7 +11,7 @@ import { clamp, lerp } from './noise.js';
 import { modeloArma, crearArmas } from './armas.js';
 
 const ARRIBA = new THREE.Vector3(0, 1, 0);
-const ORDEN_ARMAS = ['pistola9', 'revolver', 'subfusil', 'rifle308', 'carabina', 'escopeta', 'pico', 'machete'];
+const ORDEN_ARMAS = ['pistola9', 'revolver', 'revisor', 'subfusil', 'rifle308', 'carabina', 'escopeta', 'pico', 'machete'];
 
 export class Jugador {
   constructor(camara, lienzo) {
@@ -181,7 +181,7 @@ export class Jugador {
         case 'Digit2': this.cambiarArma('rifle308'); break;
         case 'Digit3': this.cambiarArma('escopeta'); break;
         case 'Digit4': this.cambiarArma('pico'); break;
-        case 'Digit5': this.cambiarArma('revolver'); break;
+        case 'Digit5': this.cambiarArma(cuenta('revisor') ? 'revisor' : 'revolver'); break;
         case 'Digit6': this.cambiarArma('subfusil'); break;
         case 'Digit7': this.cambiarArma('carabina'); break;
         case 'Digit8': this.cambiarArma('machete'); break;
@@ -430,7 +430,9 @@ export class Jugador {
     dano *= multEstadoDano(s.cnd[arma.id] ?? 100);
     if (arma.clase === 'pistola' && s.ventajas.includes('pistolero')) dano *= 1.25;
     if (arma.cuerpo) dano *= (1 + (specialEfectivo(s).FUE - 5) * 0.1) * (s.ventajas.includes('puno') ? 1.5 : 1);
-    let critico = Math.random() < arma.critico + s.special.SUE * 0.01 + (enMira ? 0.05 : 0) + (s.ventajas.includes('ojo_halcon') ? 0.05 : 0);
+    // Ojo de guardavía: Rafa te señala los puntos débiles mientras te acompaña
+    const guardavia = !arma.cuerpo && G.juego.siguiendo?.('rafa') ? 0.05 : 0;
+    let critico = Math.random() < arma.critico + s.special.SUE * 0.01 + (enMira ? 0.05 : 0) + (s.ventajas.includes('ojo_halcon') ? 0.05 : 0) + guardavia;
     // Ataque furtivo: si no te ha detectado, el golpe es crítico (armadura-criticos-sigilo.md)
     const furtivo = this.agachado && actor.estado !== 'combate' && actor.puntos < 0;
     if (furtivo) critico = true;
@@ -571,7 +573,8 @@ export class Jugador {
       if (a.dentro) continue; // vecinos que se fueron a dormir a su casa
       if (a.vivo) {
         const habla = G.juego.puedeHablar(a);
-        if (habla) probar(a.pos, 2.8, { tipo: 'actor', a, txt: `Hablar con ${a.nombre}` });
+        const txt = !a.criatura ? `Hablar con ${a.nombre}` : a.reclutado ? `Dar órdenes a ${a.nombre}` : 'Acercarte al perro';
+        if (habla) probar(a.pos, 2.8, { tipo: 'actor', a, txt });
       } else if (!G.s.saqueados[a.id] && ((a.tipo && Object.keys(a.tipo.botin).length) || a.vecino)) {
         probar(a.pos, 1.8, { tipo: 'cadaver', a, txt: `Registrar: ${a.nombre}` });
       }

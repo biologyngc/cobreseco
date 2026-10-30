@@ -534,6 +534,73 @@
 
   @media (max-width: 760px) { #contenedor .cuerpo-panel { grid-template-columns: 1fr; } }
 
+  /* Compañeros en el HUD: nombre y vida, encima de la condición del cuerpo */
+  #companeros { position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); bottom: calc(100px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 4px; }
+  #companeros div { display: flex; align-items: center; gap: 8px; font-family: var(--f-ui); font-weight: 600; font-size: 14px; color: var(--cobre-claro); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
+  #companeros div > i { display: block; width: 70px; height: 4px; background: rgba(236, 224, 200, 0.2); }
+  #companeros div > i > i { display: block; height: 100%; background: var(--cobre-claro); }
+  #companeros .caido { color: #ffb59a; }
+  .en-modal #companeros { opacity: 0; }
+
+  /* Casino: tapete verde enmarcado en el mismo mostrador de cobre */
+  .mesa.mostrador { inset: 16px; margin: auto; width: min(980px, calc(100vw - 32px)); height: fit-content; max-height: calc(100% - 32px); display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+  #blackjack.mesa { width: min(720px, calc(100vw - 32px)); }
+  .mesa .cabeza-panel h2 small { font-family: var(--f-ui); font-size: 16px; font-weight: 600; color: rgba(239, 226, 198, 0.6); margin-left: 8px; }
+  .mesa-estado { margin-left: auto; font-family: var(--f-ui); font-size: 17px; color: var(--cobre-claro); }
+  .mostrador .cerrar:disabled { opacity: 0.4; cursor: default; background: transparent; color: var(--cobre-claro); }
+  .mesa .tapete { background: radial-gradient(ellipse at 50% 40%, #245c40 0%, #173d2b 68%, #10291d 100%); box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5); display: grid; gap: 12px; align-content: start; }
+  .naipe { position: relative; flex: none; width: 52px; height: 74px; padding: 3px 5px; border-radius: 5px; border: 1px solid rgba(0, 0, 0, 0.35); background: #f2e9d4; color: #1b1410;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45); display: grid; grid-template-rows: auto 1fr; font-family: var(--f-titulo); font-weight: 800; line-height: 1; user-select: none; }
+  .naipe b { font-size: 22px; }
+  .naipe i { font-style: normal; font-size: 24px; align-self: end; justify-self: end; }
+  .naipe.rojo { color: #a3251b; }
+  .naipe.dorso { background: repeating-linear-gradient(45deg, #7a3a1c 0 6px, #8f4a2a 6px 12px); border-color: #c99a45; }
+  .naipe.dorso b, .naipe.dorso i { visibility: hidden; }
+  .naipe.cara { width: 38px; height: 54px; margin-left: -16px; transform: rotate(8deg); }
+  .naipe.cara b { font-size: 17px; }
+  .naipe.cara i { font-size: 17px; }
+  .mesa .cv-titulo { margin: 0 !important; font-size: 15px !important; color: rgba(239, 226, 198, 0.7) !important; letter-spacing: 0.04em; }
+  .cv-fila { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .cv-caravana { min-width: 0; min-height: 140px; padding: 6px; border: 1px dashed rgba(239, 226, 198, 0.25); border-radius: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .cv-caravana.objetivo { border: 2px solid var(--ambar); background: rgba(255, 181, 71, 0.1); cursor: pointer; }
+  .cv-caravana.no { opacity: 0.55; }
+  .cv-cab { display: flex; gap: 8px; align-items: baseline; font-family: var(--f-ui); color: var(--papel); }
+  .cv-cab b { font-family: var(--f-titulo); font-size: 26px; font-variant-numeric: tabular-nums; }
+  .cv-cab span { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .cv-cab small { font-size: 14px; color: rgba(239, 226, 198, 0.6); }
+  .cv-cab.vendida b, .cv-cab.vendida span { color: #8fe0a8; }
+  .cv-cab.pasada b, .cv-cab.pasada span { color: #ff9a7a; }
+  .cv-pila { display: flex; flex-direction: column; align-items: center; }
+  .cv-nodo { display: flex; align-items: flex-start; }
+  .cv-nodo + .cv-nodo { margin-top: -50px; }
+  .cv-nodo.objetivo { cursor: pointer; }
+  .cv-nodo.objetivo > .naipe:first-child { outline: 3px solid var(--ambar); outline-offset: 1px; }
+  .cv-disolver { margin-top: auto; padding: 2px 8px; border: 1px solid rgba(239, 226, 198, 0.3); border-radius: 3px; background: transparent; color: rgba(239, 226, 198, 0.75); font-family: var(--f-ui); font-size: 13px; }
+  .cv-disolver:hover, .cv-disolver:focus-visible { border-color: var(--oxido); color: #ffb59a; }
+  .cv-centro { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .cv-msg { flex: 1; min-width: 200px; margin: 0; text-align: center; font-family: var(--f-lectura); font-size: 18px; color: var(--papel); }
+  .cv-info { font-family: var(--f-ui); font-size: 14px; color: rgba(239, 226, 198, 0.65); }
+  .cv-mano { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; padding-top: 14px; }
+  .naipe.en-mano { cursor: pointer; transition: transform 0.12s; }
+  .naipe.en-mano:hover, .naipe.en-mano:focus-visible { transform: translateY(-4px); outline: none; }
+  .naipe.en-mano.sel { transform: translateY(-10px); outline: 3px solid var(--ambar); }
+  .cv-acciones, .bj-acciones { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  .apuesta { display: grid; gap: 12px; justify-items: center; padding: 12px 0 6px; font-family: var(--f-lectura); font-size: 19px; color: var(--papel); }
+  .apuesta p { margin: 0; text-align: center; }
+  .apuesta-botones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .bj-lado { display: grid; gap: 6px; justify-items: center; }
+  .mesa .bj-lado h3 { color: rgba(239, 226, 198, 0.75) !important; font-size: 16px !important; }
+  .bj-cartas { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .bj-total { font-family: var(--f-titulo); font-weight: 800; font-size: 28px; color: var(--papel); font-variant-numeric: tabular-nums; }
+  @media (max-width: 760px) {
+    .naipe { width: 40px; height: 58px; }
+    .naipe b { font-size: 17px; }
+    .naipe i { font-size: 18px; }
+    .naipe.cara { width: 30px; height: 42px; margin-left: -12px; }
+    .cv-nodo + .cv-nodo { margin-top: -40px; }
+    .cv-fila { gap: 6px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   }
@@ -554,6 +621,7 @@
   <div id="pa" class="barra"><span class="eti">PA</span><div class="pista"><div class="relleno"></div></div><b class="num"></b></div>
   <div id="municion" hidden><b id="mun-cargador"></b><span id="mun-total"></span><small id="mun-nombre"></small><i id="mun-estado"><i></i></i><small id="mun-dinamita"></small></div>
   <div id="condicion" aria-live="polite"></div>
+  <div id="companeros"></div>
   <div id="buscado" hidden></div>
   <div id="flotantes"></div>
   <div id="herida"></div>
@@ -662,6 +730,24 @@
     <input id="es-horas" type="range" min="1" max="24" value="4">
     <button id="es-ok" class="btn-oscuro lleno">Esperar</button>
   </div>
+</section>
+
+<section id="caravana" class="panel mostrador mesa" hidden aria-label="Caravana">
+  <div class="cabeza-panel">
+    <h2>Caravana <small id="cv-rival"></small></h2>
+    <span id="cv-estado" class="mesa-estado"></span>
+    <button id="cv-cerrar" class="cerrar">Levantarse · Esc</button>
+  </div>
+  <div id="cv-mesa" class="cuerpo-panel tapete"></div>
+</section>
+
+<section id="blackjack" class="panel mostrador mesa" hidden aria-label="Blackjack">
+  <div class="cabeza-panel">
+    <h2>Blackjack <small id="bj-rival"></small></h2>
+    <span id="bj-estado" class="mesa-estado"></span>
+    <button id="bj-cerrar" class="cerrar">Levantarse · Esc</button>
+  </div>
+  <div id="bj-mesa" class="cuerpo-panel tapete"></div>
 </section>
 
 <section id="terminal" class="panel" hidden>

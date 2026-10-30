@@ -39,6 +39,9 @@ export function completarPartida(s) {
   s.hab = { cuerpo: 25, explosivos: 20, supervivencia: 20, ...s.hab };
   s.karma ??= 0;
   s.fama ??= { pueblo: { fama: 0, infamia: 0 }, cuervos: { fama: 0, infamia: 0 } };
+  s.fama.riel ??= { fama: 0, infamia: 0 };
+  s.companeros ??= {};
+  s.casino ??= { ganado: 0, vetado: false };
   s.ventajas ??= [];
   s.ventajasPendientes ??= 0;
   // Estado de cada arma (0–100): el baúl guarda armas usadas, no nuevas

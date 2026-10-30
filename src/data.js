@@ -10,6 +10,8 @@ export const LUGARES = {
   mina: { nombre: 'Mina del Cobre Viejo', x: -118, z: 78, r: 26 },
   granja: { nombre: 'Granja de los Nogales', x: 118, z: -72, r: 26 },
   caravana: { nombre: 'Caravana Calcinada', x: 72, z: 4, r: 15 },
+  viamuerta: { nombre: 'Vía Muerta', x: 100, z: 112, r: 30 },
+  descarrilado: { nombre: 'Vagón Descarrilado', x: 107, z: 61, r: 14 },
 };
 
 // peso en kilos (la munición no pesa, como en New Vegas fuera del modo extremo);
@@ -47,6 +49,10 @@ export const OBJETOS = {
     nombre: 'Machete de chatarra', tipo: 'arma', valor: 55, peso: 2, texto: 'Una hoja de sierra afilada con mango de cuero. Rápido y ligero.',
     arma: { clase: 'cuerpo', dano: 17, cadencia: 0.5, alcance: 2.3, pa: 16, critico: 0.1, zoom: 72, desgaste: 0.2, cuerpo: true },
   },
+  revisor: {
+    nombre: '«El Revisor»', tipo: 'arma', valor: 600, peso: 3, texto: 'El revólver de Remedios Vega. Grabado en el cañón: «Billete, por favor».',
+    arma: { clase: 'pistola', dano: 42, cadencia: 0.42, cargador: 6, municion: 'm44', dispersion: 0.011, pa: 18, critico: 0.15, alcance: 130, recarga: 2.1, zoom: 50, desgaste: 0.3 },
+  },
   dinamita: { nombre: 'Cartucho de dinamita', tipo: 'explosivo', valor: 35, peso: 0.5, texto: 'G para encender y lanzar. La mecha dura tres segundos.' },
   m9mm: { nombre: 'Balas de 9 mm', tipo: 'municion', valor: 2, peso: 0 },
   m308: { nombre: 'Balas .308', tipo: 'municion', valor: 4, peso: 0 },
@@ -67,6 +73,7 @@ export const OBJETOS = {
   llave_ocaso: { nombre: 'Llave «OFICINA»', tipo: 'clave', valor: 0, peso: 0, texto: 'Abre la oficina de la gasolinera Ocaso.' },
   valvula: { nombre: 'Válvula de bomba', tipo: 'clave', valor: 0, peso: 2, texto: 'Lupe la necesita para la bomba del pozo.' },
   fusible: { nombre: 'Fusible cerámico', tipo: 'clave', valor: 40, peso: 0.5, texto: 'Repuesto para el repetidor de radio.' },
+  regulador: { nombre: 'Regulador de vapor', tipo: 'clave', valor: 0, peso: 3, texto: 'La válvula de latón que le falta a la Dolores, la locomotora de Vía Muerta.' },
 };
 
 // Armas de los personajes (el modelo es el de la misma arma del jugador). ideal: distancia a la que
@@ -122,6 +129,11 @@ export const TIPOS = {
     nombre: 'Perro alfa', forma: 'perro', nivel: 5, vida: 70, dt: 1, dano: 12, alcance: 1.9, cadencia: 0.85,
     velocidad: 7.2, criatura: true, valentia: 'valiente', percepcion: 8, color: '#4e4133', vientre: '#746050', escala: 1.3, botin: { carne: 2 },
   },
+  // Canelo, el perro de la granja que se puede llevar de compañero
+  perro_manso: {
+    nombre: 'Canelo', forma: 'perro', nivel: 4, vida: 95, dt: 2, dano: 11, alcance: 1.8, cadencia: 0.85,
+    velocidad: 7, criatura: true, valentia: 'valiente', percepcion: 8, color: '#a8743c', vientre: '#d8b88a', escala: 0.9, botin: {},
+  },
 };
 
 // Personajes con nombre. 'yaw' es hacia dónde miran (0 = sur, PI/2 = este).
@@ -136,6 +148,13 @@ export const PERSONAJES = [
   { id: 'paz', nombre: 'Paz Molina', vida: 90, arma: 'escopeta', valentia: 'normal', esencial: true, x: 19.9, z: -6.4, yaw: -Math.PI / 2, ropa: '#7a3e2c', piel: '#d2a07c', pelo: '#5b3b26', sombrero: 'ninguno', acento: '#e3c27a' },
   { id: 'chema', nombre: 'Chema', vida: 70, valentia: 'cobarde', botin: { cobres: 12, agua: 1 }, x: -24.6, z: 16.55, yaw: Math.PI, ropa: '#55603f', piel: '#c08a62', sombrero: 'ala', acento: '#7b5b3a' },
   { id: 'nieves', nombre: 'Nieves', vida: 55, valentia: 'cobarde', botin: { cecina: 2, cobres: 5 }, x: -4, z: -12, yaw: 0, ropa: '#8a6a8f', piel: '#d7a885', pelo: '#a9a39b', sombrero: 'ninguno', acento: '#cfc3a8', ronda: [[-4, -12], [8, -6], [6, 10], [-8, 8]], casa: [[-4, 14], [-7.7, 27.4]], entra: true },
+  // Vía Muerta: la estación del ferrocarril, al sureste
+  { id: 'remedios', nombre: 'Remedios Vega', vida: 120, arma: 'revolver', valentia: 'valiente', esencial: true, x: 93.6, z: 103.4, yaw: Math.PI / 2, ropa: '#4b3a52', piel: '#c99470', pelo: '#bdb6ad', sombrero: 'ninguno', acento: '#d9a441' },
+  { id: 'ciro', nombre: 'Ciro el mecánico', vida: 100, arma: 'escopeta', valentia: 'normal', esencial: true, x: 100.4, z: 90.6, yaw: -Math.PI / 2, ropa: '#3a4a52', piel: '#b07e5a', sombrero: 'gorra', acento: '#c8743a' },
+  { id: 'sol', nombre: 'Sol, la crupier', vida: 70, valentia: 'cauto', esencial: true, x: 92.7, z: 126.4, yaw: Math.PI / 2, ropa: '#e8e1d3', piel: '#d2a07c', pelo: '#1d1612', sombrero: 'ninguno', acento: '#9a2a1f' },
+  // Compañeros: 'companero' los hace aliados; con ellos se habla para que te sigan, esperen o se vayan
+  { id: 'rafa', nombre: 'Rafa Brasas', vida: 170, dt: 4, nivel: 7, arma: 'carabina', valentia: 'valiente', esencial: true, companero: true, x: 106.2, z: 104, yaw: Math.PI, ropa: '#5a4636', piel: '#9c6b4a', sombrero: 'ala', acento: '#b08a3a' },
+  { id: 'canelo', tipo: 'perro_manso', esencial: true, companero: true, x: 119.6, z: -73.4, ronda: [[119.6, -73.4], [116.4, -73.6], [118.2, -71.2]] },
 ];
 
 export const ENEMIGOS = [
@@ -161,6 +180,10 @@ export const ENEMIGOS = [
   { id: 'perro_g1', tipo: 'perro', x: 122, z: -70, zona: 'granja' },
   { id: 'perro_g2', tipo: 'perro', x: 120, z: -78, zona: 'granja' },
   { id: 'perro_g3', tipo: 'perro_alfa', x: 116, z: -76, zona: 'granja' },
+  // Vagón descarrilado, al norte de Vía Muerta
+  { id: 'lagarto_d0', tipo: 'lagarto', x: 102, z: 58, zona: 'descarrilado' },
+  { id: 'lagarto_d1', tipo: 'lagarto', x: 113, z: 64, zona: 'descarrilado' },
+  { id: 'lagarto_d2', tipo: 'lagarto_alfa', x: 106, z: 55, zona: 'descarrilado' },
 ];
 
 export const MISIONES = {
@@ -234,10 +257,39 @@ export const MISIONES = {
     premio: { xp: 200, objetos: { agua_limpia: 2, machete: 1, chatarra: 2 } },
     secundaria: true,
   },
+  // La gente del Riel, en Vía Muerta: quieren volver a poner en marcha la locomotora
+  q9: {
+    titulo: 'La Dolores',
+    etapas: [
+      { texto: 'Recupera el regulador de vapor del vagón descarrilado, siguiendo la vía hacia el norte.', obj: 'regulador' },
+      { texto: 'Lleva el regulador a Ciro, el mecánico de Vía Muerta.', obj: 'ciro' },
+    ],
+    premio: { xp: 220, cobres: 100 },
+    faccion: 'riel',
+  },
+  q10: {
+    titulo: 'Agua para la caldera',
+    etapas: [
+      { texto: 'La caldera de la Dolores necesita agua. Lupe, en Cobreseco, controla el pozo.', obj: 'lupe' },
+      { texto: 'Vuelve con Remedios Vega, en Vía Muerta.', obj: 'remedios' },
+    ],
+    premio: { xp: 260, cobres: 80 },
+    faccion: 'riel',
+  },
+  q11: {
+    titulo: 'El primer silbido',
+    etapas: [
+      { texto: 'Los saqueadores atacan Vía Muerta. Defiende la estación.', obj: 'viamuerta', cuenta: 5 },
+      { texto: 'Habla con Remedios Vega.', obj: 'remedios' },
+    ],
+    premio: { xp: 380, cobres: 150, objetos: { revisor: 1, m44: 24 } },
+    faccion: 'riel',
+  },
 };
 
 export const TIENDA_PAZ = { m9mm: 60, m308: 20, m44: 30, cartucho: 24, suero: 4, agua: 6, agua_limpia: 2, cecina: 3, horquilla: 8, dinamita: 3, kit_reparacion: 2, chatarra: 4, escopeta: 1, pico: 1, machete: 1, revolver: 1, guardapolvo: 1, fusible: 1 };
 export const TIENDA_BUHONERO = { agua: 4, cecina: 4, suero: 2, m9mm: 40, m308: 10, m44: 12, cartucho: 16, horquilla: 5, dinamita: 2, polvora: 2, chatarra: 3, escopeta: 1, subfusil: 1, revolver: 1 };
+export const TIENDA_CIRO = { m44: 40, m9mm: 50, m308: 20, cartucho: 20, kit_reparacion: 3, chatarra: 6, polvora: 3, dinamita: 2, carabina: 1, revolver: 1, subfusil: 1, agua_limpia: 3, suero: 2, guardapolvo: 1 };
 
 // Ventajas: una cada dos niveles. req: nivel mínimo y atributos.
 export const VENTAJAS = {
@@ -273,8 +325,21 @@ export const CONTENEDORES = {
   caja_repetidor: { nombre: 'Caja de herramientas', objetos: { chatarra: 2, polvora: 1 } },
   cajon_mina: { nombre: 'Cajón de dinamitero', objetos: { polvora: 2, dinamita: 1, chatarra: 2 } },
   arcon_granja: { nombre: 'Arcón de los Nogales', cerradura: 30, objetos: { agua_limpia: 1, chatarra: 2, m44: 8 } },
+  taquilla_estacion: { nombre: 'Taquilla de la estación', dueno: 'remedios', cerradura: 40, objetos: { cobres: 60, m44: 12, suero: 1 } },
+  caja_descarrilado: { nombre: 'Carga desperdigada', objetos: { chatarra: 3, m308: 8, agua: 1 } },
+  // Lo que lleva Rafa: lo que le das no cuenta en tu peso
+  comp_rafa: { nombre: 'Petate de Rafa', objetos: {} },
 };
 
 // Karma y fama, con nombres del pueblo
 export const KARMA = [[750, 'Santo del pozo'], [250, 'Buena gente'], [-249, 'Forastero'], [-749, 'Mala sombra'], [-Infinity, 'Azote del desierto']];
 export const FAMA = [[30, 'Idolatrado'], [15, 'Querido'], [5, 'Aceptado'], [-4, 'Desconocido'], [-14, 'Mal visto'], [-Infinity, 'Odiado']];
+
+// Compañeros: la ventaja que dan mientras te siguen (como en New Vegas)
+export const COMPANEROS = {
+  rafa: { nombre: 'Rafa Brasas', ventaja: 'Ojo de guardavía', texto: '+5 % de crítico con armas de fuego mientras te sigue. Lleva lo que le des.' },
+  canelo: { nombre: 'Canelo', ventaja: 'Olfato', texto: 'Los enemigos a menos de 50 m salen en la brújula aunque no te hayan visto.' },
+};
+
+// Casino de Vía Muerta: apuestas y lo que la casa aguanta antes de echarte (como en el Strip)
+export const CASINO = { apuestas: [10, 25, 50, 100], tope: 900 };

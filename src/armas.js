@@ -157,7 +157,7 @@ export function modeloArma(id, mano = false) {
   let g = null;
   if (id === 'escopeta') g = escopeta();
   else if (id === 'pico') g = pico();
-  else if (id === 'revolver') g = revolver();
+  else if (id === 'revolver' || id === 'revisor') g = revolver();
   else if (id === 'subfusil') g = subfusil();
   else if (id === 'carabina') g = carabina();
   else if (id === 'machete') g = machete();

@@ -18,6 +18,8 @@ const LLANOS = [
   { x: -150, z: -40, r: 9 },
   { x: -118, z: 78, r: 20 },
   { x: 118, z: -72, r: 22 },
+  { x: 100, z: 112, r: 30 },
+  { x: 107, z: 61, r: 11 },
 ];
 
 const CAMINOS = [
@@ -27,6 +29,8 @@ const CAMINOS = [
   [[0, 0], [-55, -14], [-110, -34], [-142, -40]],
   [[0, 0], [-40, 28], [-82, 55], [-116, 78]],
   [[0, 0], [42, -20], [85, -46], [118, -72]],
+  // Ramal de la carretera de Ocaso hacia la estación de Vía Muerta
+  [[95, 16], [97, 55], [99, 86], [101, 99]],
 ];
 
 function alturaBruta(x, z) {
@@ -1635,6 +1639,286 @@ export function crearMundo(escena) {
     colisor(cx - 1.2, cx + 1.2, cz - 2.2, cz + 2.2, cy - 1, cy + 1.3);
     interactivo('restos_caravana', cx, cy + 0.8, cz - 1.3, 1.8);
     mundo.puntos.restos_caravana = new THREE.Vector3(cx, cy + 0.8, cz - 1.3);
+  }
+
+  // ---------- Vía Muerta: la estación del Riel, con la Dolores, el casino y el taller de Ciro ----------
+  {
+    const vx = 110;
+    // Vía de norte a sur: traviesas cada 0,9 m y carriles en tramos de 3 m que siguen el terreno
+    const via = new THREE.Group();
+    const acero = mat('#5f574e', { metalness: 0.55, roughness: 0.5 });
+    const traviesa = mat('#4a3626', { tex: 'madera' });
+    for (let z = 52; z < 146; z += 0.9) caja(via, 2.4, 0.14, 0.26, traviesa, vx, altura(vx, z) + 0.05, z, false);
+    for (let z = 52; z < 143; z += 3) {
+      const ya = altura(vx, z), yb = altura(vx, z + 3);
+      for (const sx of [-0.72, 0.72]) {
+        const r = caja(via, 0.09, 0.12, 3.02, acero, vx + sx, (ya + yb) / 2 + 0.19, z + 1.5, false);
+        r.rotation.x = -Math.atan2(yb - ya, 3);
+      }
+    }
+    escena.add(via);
+    fusionar(via);
+
+    // Andén de tablas entre la estación y la vía, pisable como un porche
+    const ax0 = 104, ax1 = 108.6, az0 = 97, az1 = 131;
+    let yAnden = -Infinity;
+    for (const [px, pz] of [[ax0, az0], [ax1, az0], [ax0, az1], [ax1, az1], [(ax0 + ax1) / 2, (az0 + az1) / 2]]) yAnden = Math.max(yAnden, altura(px, pz));
+    yAnden += 0.45;
+    const anden = new THREE.Group();
+    caja(anden, ax1 - ax0, 1.4, az1 - az0, mat('#8b6b4a', { tex: 'madera', rep: [3, 18] }), (ax0 + ax1) / 2, yAnden - 0.7, (az0 + az1) / 2);
+    caja(anden, 0.18, 0.02, az1 - az0, mat('#c9a24a'), ax1 - 0.12, yAnden + 0.01, (az0 + az1) / 2, false);
+    escena.add(anden);
+    anden.traverse((m) => { if (m.isMesh) mundo.ocluyentes.push(m); });
+    mundo.plataformas.push({ x0: ax0, x1: ax1, z0: az0, z1: az1, y: yAnden });
+    for (const lz of [101, 124]) {
+      const lx = 104.4, g = new THREE.Group();
+      g.position.set(lx, yAnden, lz);
+      cilindro(g, 0.07, 0.1, 4.0, 6, maderaOsc, 0, 2.0, 0);
+      caja(g, 0.9, 0.08, 0.08, maderaOsc, 0.4, 3.8, 0);
+      const farol = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.38, 0.28), new THREE.MeshStandardMaterial({ color: '#2f2418', emissive: '#ffae4f', emissiveIntensity: 0.1 }));
+      farol.position.set(0.8, 3.55, 0);
+      g.add(farol);
+      if (poner('ph_Lantern_01', { alto: 0.5 }, 0.8, 3.28, 0, 0, { padre: g })) farol.scale.setScalar(0.35);
+      const charco = new THREE.Mesh(new THREE.CircleGeometry(6, 24), charcoMat.clone());
+      charco.rotation.x = -Math.PI / 2;
+      charco.position.set(0.8, 0.06, 0);
+      charco.renderOrder = 2;
+      g.add(charco);
+      escena.add(g); fusionar(g, new Set([farol, charco]));
+      mundo.lamparas.push({ charco, farol, pos: new THREE.Vector3(lx + 0.8, yAnden + 3.3, lz) });
+    }
+
+    // Puertas y luz de dentro de los edificios huecos del pueblo
+    const ruta = (g, zDentro, zFuera, zLejos) => {
+      const r = mundo.rejillas.find((rj) => rj.grupo === g);
+      if (!r) return;
+      const punto = (d) => { const [wx, wz] = aMundo(g, 0, d); return new THREE.Vector3(wx, 0, wz); };
+      mundo.edificios.push({ r, dentro: punto(zDentro), fuera: punto(zFuera), lejos: punto(zLejos) });
+      const [cx, cz] = aMundo(g, 0, 0);
+      mundo.interiores.push({ r, pos: new THREE.Vector3(cx, g.userData.y0 + 2.7, cz), fuerza: 12 });
+    };
+
+    // Estación: taquilla, bancos de espera y el escritorio de Remedios
+    const est = edificio({ x: 96, z: 106, rot: Math.PI / 2, w: 10, d: 7.5, h: 4.4, color: '#c7a27a', cartel: 'ESTACIÓN', ventanas: 2, hueco: true });
+    {
+      const g = est, s = 0.5;
+      caja(g, 1.8, 0.08, 0.8, madera, 2.6, s + 0.82, -1.3);
+      caja(g, 1.8, 0.78, 0.06, maderaOsc, 2.6, s + 0.4, -0.92);
+      for (const px of [1.8, 3.4]) caja(g, 0.07, 0.78, 0.7, maderaOsc, px, s + 0.4, -1.3);
+      mostrador(g, -2.6, s, -1.0);
+      // Bancos de espera, dejando libre el paso hasta la puerta
+      for (const bx of [-2.7, 2.3]) {
+        caja(g, 2.0, 0.08, 0.5, madera, bx, s + 0.45, 1.9);
+        caja(g, 2.0, 0.5, 0.06, maderaOsc, bx, s + 0.74, 2.15);
+        for (const px of [-0.85, 0.85]) caja(g, 0.07, 0.45, 0.45, maderaOsc, bx + px, s + 0.22, 1.9);
+      }
+      cartelEn(g, 'SALIDAS: SUSPENDIDAS', 2.4, -0.4, s + 2.3, -3.48, 0);
+      ponerEn(g, [
+        ['ph_wall_clock', { alto: 0.4 }, 1.5, s + 2.4, -3.46, 0],
+        ['ph_vintage_oil_lamp', { alto: 0.4 }, 3.2, s + 0.86, -1.3, 0],
+        ['ph_vintage_cabinet_01', { alto: 1.9 }, -4.1, s, -2.8, Math.PI / 2],
+        ['ph_wooden_crate_01', { largo: 0.7 }, 4.1, s, 2.9, 0.3],
+      ]);
+      interactivoEn(g, 'cont:taquilla_estacion', -3.6, s + 0.9, -2.6, 1.2);
+      cerrarEdificio(g, g.userData.y0);
+    }
+    ruta(est, 2.6, 4.9, 7.4);
+
+    // Casino «El Vagón de la Suerte»: mesas de Caravana y de blackjack, y una barra
+    const cas = edificio({ x: 96, z: 124, rot: Math.PI / 2, w: 10, d: 8, h: 4.6, color: '#9b5a3c', cartel: 'CASINO · EL VAGÓN', ventanas: 2, hueco: true });
+    {
+      const g = cas, s = 0.5;
+      const tapete = mat('#1f5a3c', { roughness: 0.95 });
+      for (const [tx, ancho] of [[-2.4, 1.7], [1.3, 1.9]]) {
+        caja(g, ancho + 0.16, 0.1, 1.24, maderaOsc, tx, s + 0.78, -1.8);
+        caja(g, ancho, 0.04, 1.08, tapete, tx, s + 0.85, -1.8, false);
+        caja(g, ancho - 0.2, 0.7, 0.9, maderaOsc, tx, s + 0.38, -1.8);
+        for (let k = 0; k < 3; k++) caja(g, 0.07, 0.006, 0.1, mat('#efe6d2'), tx - 0.4 + k * 0.4, s + 0.875, -1.6, false);
+        for (let k = 0; k < 2; k++) cilindro(g, 0.025, 0.025, 0.04 + k * 0.03, 10, mat(k ? '#9a2a1f' : '#2f5f8f'), tx + 0.5, s + 0.89 + k * 0.01, -2.0 + k * 0.08);
+      }
+      cartelEn(g, 'CARAVANA', 1.3, -2.4, s + 2.3, -3.72, 0);
+      cartelEn(g, 'BLACKJACK', 1.3, 1.3, s + 2.3, -3.72, 0);
+      cartelEn(g, 'EL VAGÓN DE LA SUERTE', 3.4, -0.55, s + 3.25, -3.72, 0, { fondo: '#3a1410', tinta: '#f2c08c' });
+      mostrador(g, 3.9, s, 0.4);
+      ponerEn(g, [
+        ['ph_bar_chair_round_01', { alto: 0.8 }, 2.9, s, -0.4, 0],
+        ['ph_bar_chair_round_01', { alto: 0.8 }, 2.9, s, 0.9, 0],
+        ['ph_wooden_display_shelves_01', { alto: 1.9 }, 4.5, s, 0.4, -Math.PI / 2],
+        ['ph_ceiling_fan', { largo: 1.6 }, 0, s + 3.55, 0, 0],
+        ['ph_vintage_oil_lamp', { alto: 0.4 }, -1.7, s + 0.9, -2.2, 0],
+        ['ph_vintage_oil_lamp', { alto: 0.4 }, 2.1, s + 0.9, -2.2, 0],
+      ]);
+      interactivoEn(g, 'mesa_caravana', -2.4, s + 0.9, -0.9, 1.3);
+      interactivoEn(g, 'mesa_blackjack', 1.3, s + 0.9, -0.9, 1.3);
+      cerrarEdificio(g, g.userData.y0);
+    }
+    ruta(cas, 2.8, 5.2, 7.8);
+
+    // Taller de Ciro: cobertizo abierto con banco de trabajo, bidones y repuestos
+    {
+      const tx = 99, tz = 90, ty = altura(tx, tz);
+      const g = new THREE.Group();
+      g.position.set(tx, ty, tz);
+      for (const [px, pz] of [[-2.4, -2.6], [2.4, -2.6], [-2.4, 2.6], [2.4, 2.6]]) cilindro(g, 0.09, 0.11, 3.0, 6, maderaOsc, px, 1.5, pz);
+      const techo = caja(g, 5.6, 0.1, 6.0, chapa, 0, 3.05, 0);
+      techo.rotation.z = 0.12;
+      const bancoG = new THREE.Group();
+      bancoG.position.set(-0.4, 0, 0.6);
+      bancoG.rotation.y = Math.PI / 2;
+      bancoTrabajo(bancoG, 0, 0, 0);
+      g.add(bancoG);
+      ponerEn(g, [
+        ['ph_Barrel_01', { alto: 1.0 }, -1.9, 0, -2.0, 0],
+        ['ph_Barrel_01', { alto: 1.0 }, -1.2, 0, -2.2, 0.6],
+        ['ph_metal_jerrycan', { alto: 0.45 }, 1.8, 0, -2.1, 0.3],
+        ['ph_old_tyre', { largo: 0.9 }, 2.0, 0, 2.2, 0],
+        ['ph_portable_generator', { largo: 1.1 }, -1.8, 0, 2.0, 0.5],
+        ['ph_old_military_crate', { largo: 0.9 }, 1.6, 0, -0.6, 0.2],
+      ]);
+      cartelEn(g, 'TALLER', 1.8, 0, 2.7, -2.75, Math.PI);
+      escena.add(g);
+      fusionar(g);
+      g.traverse((m) => { if (m.isMesh) mundo.ocluyentes.push(m); });
+      interactivo('banco', tx + 0.2, ty + 1.0, tz + 0.6, 1.5);
+    }
+
+    // Depósito de agua de la estación, junto a la vía
+    {
+      const dx = 115.6, dz = 97, dy = altura(dx, dz);
+      if (!poner('deposito_agua', { alto: 8 }, dx, dy - 0.1, dz, 0.4, { colision: 1.8, alto: 8 })) {
+        const g = new THREE.Group();
+        g.position.set(dx, dy, dz);
+        for (const [px, pz] of [[-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3]]) cilindro(g, 0.12, 0.14, 4.4, 6, maderaOsc, px, 2.2, pz);
+        cilindro(g, 1.9, 1.9, 2.8, 14, madera, 0, 5.8, 0);
+        escena.add(g);
+        colisor(dx - 1.6, dx + 1.6, dz - 1.6, dz + 1.6, dy - 1, dy + 7);
+      }
+    }
+
+    // La Dolores: locomotora de vapor con su ténder, parada junto al andén, y un furgón detrás
+    const yVia = (z) => altura(vx, z) + 0.25;
+    const negro = mat('#23211f', { metalness: 0.5, roughness: 0.55 });
+    const verdeCaldera = mat('#2e3a34', { metalness: 0.45, roughness: 0.5 });
+    const latonV = mat('#b8893c', { metalness: 0.8, roughness: 0.35 });
+    const rojoV = mat('#7a2a1e', { roughness: 0.7 });
+    const loco = new THREE.Group();
+    loco.position.set(vx, yVia(118), 118);
+    caja(loco, 2.1, 0.32, 9.2, negro, 0, 0.95, 0.4);
+    const boiler = cilindro(loco, 0.82, 0.82, 5.4, 16, verdeCaldera, 0, 2.05, -1.1);
+    boiler.rotation.x = Math.PI / 2;
+    for (const z of [-3.2, -1.6, 0]) { const b = cilindro(loco, 0.845, 0.845, 0.06, 16, latonV, 0, 2.05, z); b.rotation.x = Math.PI / 2; }
+    const humero = cilindro(loco, 0.88, 0.88, 1.0, 16, negro, 0, 2.05, -4.2);
+    humero.rotation.x = Math.PI / 2;
+    cilindro(loco, 0.24, 0.42, 1.5, 12, negro, 0, 3.55, -3.9);
+    cilindro(loco, 0.46, 0.46, 0.14, 12, negro, 0, 4.35, -3.9);
+    cilindro(loco, 0.3, 0.36, 0.55, 12, latonV, 0, 3.05, -1.2);
+    cilindro(loco, 0.1, 0.14, 0.3, 10, latonV, 0, 3.0, 0.4);
+    caja(loco, 2.3, 2.2, 2.3, rojoV, 0, 2.55, 2.4);
+    caja(loco, 2.6, 0.12, 2.7, negro, 0, 3.72, 2.4);
+    for (const sx of [-1.16, 1.16]) caja(loco, 0.04, 0.7, 0.9, mat('#121212'), sx, 2.9, 2.2, false);
+    const quita = caja(loco, 2.0, 0.6, 0.8, negro, 0, 0.6, -4.9);
+    quita.rotation.x = 0.55;
+    const farolLoco = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.4, 0.36), new THREE.MeshStandardMaterial({ color: '#2a2016', emissive: '#ffcf7a', emissiveIntensity: 0.15 }));
+    farolLoco.position.set(0, 2.95, -4.6);
+    loco.add(farolLoco);
+    for (const sx of [-1.08, 1.08]) {
+      for (const z of [-0.2, 1.3, 2.8]) { const w = cilindro(loco, 0.66, 0.66, 0.12, 18, rojoV, sx, 0.66, z); w.rotation.z = Math.PI / 2; }
+      for (const z of [-3.1, -4.0]) { const w = cilindro(loco, 0.38, 0.38, 0.12, 14, negro, sx, 0.38, z); w.rotation.z = Math.PI / 2; }
+      caja(loco, 0.06, 0.1, 3.2, latonV, sx * 1.07, 0.66, 1.3);
+    }
+    caja(loco, 2.2, 1.5, 2.8, negro, 0, 1.55, 5.6);
+    caja(loco, 2.0, 0.3, 2.5, mat('#0e0d0c'), 0, 2.4, 5.6, false);
+    for (const sx of [-1.08, 1.08]) for (const z of [4.8, 6.4]) { const w = cilindro(loco, 0.42, 0.42, 0.12, 14, negro, sx, 0.42, z); w.rotation.z = Math.PI / 2; }
+    cartelEn(loco, 'LA DOLORES', 1.7, -1.18, 2.6, 2.4, -Math.PI / 2);
+    escena.add(loco);
+    fusionar(loco, new Set([farolLoco]));
+    loco.traverse((m) => { if (m.isMesh) mundo.ocluyentes.push(m); });
+    colisor(vx - 1.2, vx + 1.2, 112.7, 125.1, loco.position.y - 1, loco.position.y + 4.4);
+
+    const furgon = new THREE.Group();
+    furgon.position.set(vx, yVia(129.6), 129.6);
+    caja(furgon, 2.5, 2.4, 7.0, mat('#7a4a32', { tex: 'madera', rep: [1, 3] }), 0, 2.1, 0);
+    caja(furgon, 2.7, 0.14, 7.2, chapa, 0, 3.36, 0);
+    caja(furgon, 0.06, 2.0, 1.6, maderaOsc, -1.27, 2.0, 0);
+    caja(furgon, 2.2, 0.3, 7.0, negro, 0, 0.8, 0);
+    for (const z of [-2.6, 2.6]) for (const sx of [-1.0, 1.0]) for (const dz of [-0.55, 0.55]) { const w = cilindro(furgon, 0.4, 0.4, 0.1, 12, negro, sx, 0.4, z + dz); w.rotation.z = Math.PI / 2; }
+    escena.add(furgon);
+    fusionar(furgon);
+    furgon.traverse((m) => { if (m.isMesh) mundo.ocluyentes.push(m); });
+    colisor(vx - 1.3, vx + 1.3, 126, 133.2, furgon.position.y - 1, furgon.position.y + 3.5);
+
+    // Humo de la chimenea cuando la caldera está encendida (misión «Agua para la caldera»)
+    const texHumoT = (() => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const x = c.getContext('2d');
+      const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(225,220,212,0.7)');
+      gr.addColorStop(1, 'rgba(200,195,188,0)');
+      x.fillStyle = gr;
+      x.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(c);
+    })();
+    const bocaChimenea = new THREE.Vector3(vx, loco.position.y + 4.5, 118 - 3.9);
+    const humosT = Array.from({ length: 10 }, (_, i) => {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHumoT, transparent: true, depthWrite: false, opacity: 0 }));
+      s.visible = false;
+      escena.add(s);
+      return { s, t: i / 10 };
+    });
+    let encendida = false;
+    mundo.encenderDolores = () => { encendida = true; farolLoco.material.emissiveIntensity = 2.5; };
+    mundo.animados.push((dt) => {
+      if (!encendida) return;
+      for (const h of humosT) {
+        h.t += dt * 0.25;
+        if (h.t > 1) h.t -= 1;
+        h.s.visible = true;
+        h.s.position.set(bocaChimenea.x + h.t * 1.5, bocaChimenea.y + h.t * 6, bocaChimenea.z + h.t * 0.8);
+        h.s.scale.setScalar(0.6 + h.t * 3.2);
+        h.s.material.opacity = (1 - h.t) * 0.55;
+      }
+    });
+  }
+
+  // ---------- vagón descarrilado, al norte de Vía Muerta ----------
+  {
+    const dx = 105.5, dz = 61, dy = altura(dx, dz);
+    const g = new THREE.Group();
+    g.position.set(dx, dy, dz);
+    const hierroV = mat('#23211f', { metalness: 0.5 });
+    // Furgón volcado de costado, con las ruedas al aire
+    const caido = new THREE.Group();
+    caido.rotation.set(0, 0.25, Math.PI / 2 - 0.08);
+    caido.position.set(0, 1.25, 0);
+    caja(caido, 2.5, 2.4, 7.0, mat('#6e432e', { tex: 'madera', rep: [1, 3] }), 0, 0, 0);
+    caja(caido, 2.7, 0.14, 7.2, chapa, 0, 1.25, 0);
+    caja(caido, 2.2, 0.3, 7.0, hierroV, 0, -1.35, 0);
+    for (const z of [-2.6, 2.6]) for (const sx of [-1.0, 1.0]) { const w = cilindro(caido, 0.4, 0.4, 0.1, 12, hierroV, sx, -1.7, z); w.rotation.z = Math.PI / 2; }
+    g.add(caido);
+    // Traviesas y un carril arrancados
+    for (let i = 0; i < 6; i++) { const t = caja(g, 2.4, 0.14, 0.26, mat('#4a3626', { tex: 'madera' }), 3 + R() * 3, 0.07, -4 + R() * 8); t.rotation.y = R() * 2; }
+    const suelto = caja(g, 0.09, 0.12, 4, mat('#5f574e', { metalness: 0.55 }), 3.8, 0.1, 2);
+    suelto.rotation.y = 0.7;
+    // Carga desperdigada y el regulador de vapor junto a la puerta del furgón
+    if (!poner('ph_old_military_crate', { largo: 0.9 }, -2.2, 0, 3.5, 0.6, { padre: g })) caja(g, 0.8, 0.6, 0.8, madera, -2.2, 0.3, 3.5);
+    if (!poner('ph_wooden_crate_01', { largo: 0.8 }, -2.6, 0, 4.6, 1.1, { padre: g })) caja(g, 0.75, 0.75, 0.75, madera, -2.6, 0.37, 4.6);
+    const regulador = new THREE.Group();
+    regulador.position.set(-1.9, 0.12, -1.5);
+    cilindro(regulador, 0.13, 0.15, 0.32, 12, mat('#b8893c', { metalness: 0.8, roughness: 0.3 }), 0, 0.16, 0);
+    const volante = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.025, 6, 16), mat('#7a2a1e'));
+    volante.position.y = 0.36;
+    volante.rotation.x = Math.PI / 2;
+    regulador.add(volante);
+    g.add(regulador);
+    escena.add(g);
+    fusionar(g, new Set([regulador]));
+    g.traverse((m) => { if (m.isMesh && m.parent !== regulador) mundo.ocluyentes.push(m); });
+    mundo.regulador = regulador;
+    colisor(dx - 1.5, dx + 2.3, dz - 3.9, dz + 3.9, dy - 1, dy + 2.6);
+    interactivo('regulador', dx - 1.9, dy + 0.5, dz - 1.5, 1.4);
+    mundo.puntos.regulador = new THREE.Vector3(dx - 1.9, dy + 0.5, dz - 1.5);
+    interactivo('cont:caja_descarrilado', dx - 2.2, dy + 0.6, dz + 3.5, 1.4);
   }
 
   // ---------- arroyo: huesos y nidos ----------

@@ -1,12 +1,66 @@
 // Lógica del juego: misiones, diálogos, objetos interactivos, experiencia, inventario y comercio.
 import * as THREE from 'three';
 import { G, guardar, cuenta, dar, quitar } from './state.js';
-import { MISIONES, OBJETOS, LUGARES, TIENDA_PAZ, CONTENEDORES } from './data.js';
+import { MISIONES, OBJETOS, LUGARES, TIENDA_PAZ, TIENDA_CIRO, CONTENEDORES, COMPANEROS } from './data.js';
 import { nivelPorXP, puntosPorNivel, vidaMaxima, precioCompra, precioVenta } from './rules.js';
 import { encargos } from './encargos.js';
 import { sistemas } from './sistemas.js';
+import { Actor } from './actors.js';
 
 const s = () => G.s;
+
+// ---------- compañeros ----------
+// Uno humano (Rafa) y uno perro (Canelo), como en New Vegas. Se les habla para que sigan, esperen o se vayan.
+const siguiendo = (id) => !!(s().companeros?.[id]?.reclutado && s().companeros[id].siguiendo);
+function reclutar(id) {
+  const S = s();
+  S.companeros[id] = { reclutado: true, siguiendo: true };
+  const a = G.actores.find((x) => x.id === id);
+  if (a) { a.colocadoComp = true; a.volviendo = false; a.estado = 'quieto'; }
+  const c = COMPANEROS[id];
+  G.ui.toast(`${c.nombre} viaja contigo · ${c.ventaja}`, 'mision');
+  nota(`${c.nombre} viaja contigo. ${c.ventaja}: ${c.texto}`);
+  G.audio?.ok();
+  guardar();
+}
+function seguirComp(id) {
+  const c = s().companeros[id];
+  c.siguiendo = true;
+  delete c.espera;
+  guardar();
+}
+function esperarComp(id) {
+  const a = G.actores.find((x) => x.id === id);
+  const c = s().companeros[id];
+  c.siguiendo = false;
+  c.espera = a ? [a.pos.x, a.pos.z] : null;
+  guardar();
+}
+function despedir(id) {
+  s().companeros[id] = { reclutado: false };
+  const a = G.actores.find((x) => x.id === id);
+  if (a) { a.volviendo = true; a.estado = 'quieto'; a.objetivoComp = null; a.colocadoComp = false; a.rutaP = null; }
+  G.ui.toast(`${COMPANEROS[id].nombre} vuelve a su sitio`);
+  guardar();
+}
+
+// ---------- asalto a Vía Muerta (misión «El primer silbido») ----------
+// Llegan por el oeste; si cargas la partida a medias, vuelven los que quedaban vivos
+const PUNTOS_ASALTO = [[66, 112], [64, 104], [67, 120], [61, 108], [62, 117]];
+function asaltoEstacion() {
+  const S = s();
+  let n = 0;
+  PUNTOS_ASALTO.forEach(([x, z], i) => {
+    const id = `asalto${i}`;
+    if (S.muertos[id] || G.actores.some((a) => a.id === id)) return;
+    const a = new Actor({ id, tipo: i === 0 ? 'cabecilla' : 'salteador', x, z, zona: 'asalto', yaw: Math.PI / 2, nombre: i === 0 ? 'Jefe del asalto' : undefined });
+    G.escena.add(a.g);
+    G.actores.push(a);
+    a.entrarCombate();
+    n++;
+  });
+  if (n) G.ui.toast('¡Los saqueadores atacan Vía Muerta!', 'peligro');
+}
 
 // ---------- experiencia ----------
 function ganarXP(xp, motivo) {
@@ -117,10 +171,18 @@ function completar(id) {
     G.ui.toast(`Recibido: ${OBJETOS[o].nombre}${n > 1 ? ` ×${n}` : ''}`);
   }
   ganarXP(p.xp, def.titulo);
-  // Cumplir con el pueblo da fama; devolverle el agua, además, karma
-  if (MISIONES[id]) sistemas.fama('pueblo', 4);
+  // Cumplir con el pueblo (o con el Riel) da fama; devolverle el agua, además, karma
+  if (MISIONES[id]) sistemas.fama(def.faccion || 'pueblo', def.faccion ? 6 : 4);
   if (id === 'q3') sistemas.karma(60, 'Has devuelto el agua a Cobreseco');
   if (id === 'q5' && s().flags.resolucion === 'habla') sistemas.karma(40, 'Has evitado una matanza');
+  if (id === 'q9') nota('Ciro ha montado el regulador en la Dolores. Ahora le falta agua para la caldera.');
+  if (id === 'q10') {
+    s().flags.doloresEncendida = true;
+    G.mundo.encenderDolores?.();
+    if (s().flags.acuerdoAgua === 'nogales') sistemas.fama('riel', 4);
+    nota('La Dolores vuelve a echar humo en Vía Muerta.');
+  }
+  if (id === 'q11') { s().flags.estacionDefendida = true; sistemas.karma(30, 'Has defendido Vía Muerta'); }
   const otra = Object.entries(s().misiones).find(([, v]) => v.estado === 'activa');
   s().activa = otra ? otra[0] : null;
   if (id === 'q3') { s().flags.bombaReparada = true; G.mundo.repararBomba(); }
@@ -142,6 +204,8 @@ function alEntrarEtapa(id) {
   if (id === 'q5' && m.etapa === 0 && S.flags.resolucion) avanzar('q5', 1);
   if (id === 'q6' && m.etapa === 0) { m.cuenta = Math.min(4, S.flags.salteadores || 0); if (m.cuenta >= 4) avanzar('q6', 1); }
   if (id === 'q8' && m.etapa === 0) { m.cuenta = Math.min(4, S.flags.perrosGranja || 0); if (m.cuenta >= 4) avanzar('q8', 1); }
+  if (id === 'q9' && m.etapa === 0 && cuenta('regulador') > 0) avanzar('q9', 1);
+  if (id === 'q11' && m.etapa === 0) { m.cuenta = Math.min(5, S.flags.asaltoBajas || 0); if (m.cuenta >= 5) avanzar('q11', 1); else asaltoEstacion(); }
 }
 
 function evento(tipo, d = {}) {
@@ -163,8 +227,18 @@ function evento(tipo, d = {}) {
         if (m.cuenta >= 6) avanzar('q2', 1);
       }
     }
+    // Saqueadores del asalto a Vía Muerta (q11)
+    if (a.def?.zona === 'asalto') {
+      S.flags.asaltoBajas = (S.flags.asaltoBajas || 0) + 1;
+      if (etapa('q11') === 0) {
+        const m = mision('q11');
+        m.cuenta++;
+        G.ui.toast(`Asaltantes: ${Math.min(m.cuenta, 5)}/5`);
+        if (m.cuenta >= 5) avanzar('q11', 1);
+      }
+    }
     // Saqueadores de la mina (q6)
-    if (a.equipo === 'saqueadores') {
+    if (a.equipo === 'saqueadores' && a.def?.zona === 'mina') {
       S.flags.salteadores = (S.flags.salteadores || 0) + 1;
       if (etapa('q6') === 0) {
         const m = mision('q6');
@@ -237,6 +311,9 @@ function textoInteractivo(id) {
       if (f.cajaMina) return null;
       return mision('q6') && etapa('q6') === 0 ? 'Caja del capataz (despeja la mina primero)' : 'Registrar la caja del capataz';
     case 'restos_caravana': return f.restosCaravana ? null : 'Registrar la caravana calcinada';
+    case 'regulador': return f.regulador ? null : 'Coger el regulador de vapor';
+    case 'mesa_caravana': return 'Jugar a Caravana';
+    case 'mesa_blackjack': return 'Jugar al blackjack';
     case 'alacena_granja':
       if (f.alacenaGranja) return null;
       return mision('q8') && etapa('q8') === 0 ? 'Alacena (echa a la manada primero)' : 'Registrar la alacena';
@@ -347,6 +424,25 @@ function usarInteractivo(id) {
       if (etapa('q7') >= 0) completar('q7');
       guardar();
       break;
+    case 'regulador':
+      f.regulador = true;
+      G.mundo.regulador.visible = false;
+      dar('regulador');
+      G.audio?.recoger();
+      G.ui.toast('Recogido: Regulador de vapor');
+      if (etapa('q9') === 0) avanzar('q9', 1);
+      guardar();
+      break;
+    case 'mesa_caravana':
+    case 'mesa_blackjack': {
+      // Juega Sol; si no está en su sitio (herida, huyendo), no hay partida
+      const sol = G.actores.find((a) => a.id === 'sol');
+      if (!sol || !sol.vivo || sol.estado !== 'quieto') { G.audio?.error(); G.ui.toast('No hay nadie para repartir.'); break; }
+      if (S.casino.vetado) { G.audio?.error(); G.ui.toast('Sol niega con la cabeza: la casa ya no acepta tus apuestas.'); break; }
+      if (id === 'mesa_caravana') G.casino.abrirCaravana(sol);
+      else G.casino.abrirBlackjack(sol);
+      break;
+    }
     case 'alacena_granja':
       if (mision('q8') && etapa('q8') === 0) { G.audio?.error(); G.ui.toast('La manada aún ronda la granja.'); break; }
       f.alacenaGranja = true;
@@ -416,6 +512,7 @@ function abrirPuerta() {
 function tiendaDe(a) {
   const S = s();
   if (a && a.id === 'buhonero') return (S.tiendaBuhonero = S.tiendaBuhonero || {});
+  if (a && a.id === 'ciro') return (S.tiendaCiro = S.tiendaCiro || { ...TIENDA_CIRO });
   return S.tienda;
 }
 function truequeEfectivo() { return Math.min(100, s().hab.trueque + (s().flags.descuentoPaz ? 15 : 0)); }
@@ -573,6 +670,9 @@ function aplicarEstadoMundo() {
   }
   if (f.cuervosHostiles) for (const a of G.actores) if (a.equipo === 'cuervos') a.estado = 'quieto';
   if (!s().tienda) s().tienda = { ...TIENDA_PAZ };
+  if (f.regulador && G.mundo.regulador) G.mundo.regulador.visible = false;
+  if (f.doloresEncendida) G.mundo.encenderDolores?.();
+  if (etapa('q11') === 0) asaltoEstacion();
   encargos.recrear();
 }
 
@@ -586,6 +686,7 @@ function muerte() {
 // Cada nodo tiene texto y opciones. Una opción puede pedir una habilidad ("prueba"),
 // tener una condición ("si"), ejecutar algo ("hacer") e ir a otro nodo ("ir"; null cierra).
 function puedeHablar(a) {
+  if (a.companero) return a.vivo && a.estado !== 'inconsciente' && a.estado !== 'combate';
   if (a.vecino) return !a.hostil && !['huida', 'inconsciente', 'arresto', 'combate'].includes(a.estado);
   if (a.id === 'garza' && !s().flags.cuervosHostiles && !s().flags.cuervosFuera) return true;
   return false;
@@ -737,6 +838,23 @@ function dialogo(a) {
           agua: { texto: '¿Lo oyes? ¡Agua! Toma, era de mi padre: un rifle de cerrojo. A mí me sobra y a ti te va a hacer falta. Pulsa 2 para sacarlo.', opciones: [adios] },
         };
       }
+      // Trato del agua para la locomotora de Vía Muerta
+      if (etapa('q10') === 0) {
+        return {
+          inicio: {
+            texto: '¿Agua para una locomotora? ¿Sabes lo que nos costó que volviera a salir? Explícame por qué debería dársela a los del Riel.',
+            opciones: [
+              { texto: '[Habla 50] Con el tren llegarán comerciantes y médicos. Cobreseco dejará de estar sola.', prueba: { hab: 'habla', valor: 50 }, si: () => !f.dLupeRiel, ir: 'compartir', fallo: 'compartirNo', hacer: () => { f.acuerdoAgua = 'compartir'; avanzar('q10', 1); sistemas.karma(20, 'Has unido a Cobreseco y Vía Muerta'); sistemas.fama('pueblo', 3); } },
+              { texto: 'Te pago el agua. [150 cobres]', si: () => S.cobres >= 150, ir: 'comprar', hacer: () => { S.cobres -= 150; f.acuerdoAgua = 'comprar'; avanzar('q10', 1); } },
+              { texto: 'Lo pensaré.', ir: null },
+            ],
+          },
+          compartir: { texto: 'Médicos y comerciantes… Inés estaría encantada. Está bien: un depósito a la semana, y que no se acostumbren. Diles que Cobreseco cumple.', opciones: [adios] },
+          compartirNo: { texto: 'Bonitas palabras. Las palabras no mueven bombas. Si quieren agua, que la paguen.', opciones: [{ texto: 'Hablemos de precio, entonces.', ir: 'inicio', hacer: () => { f.dLupeRiel = true; } }, adios] },
+          comprar: { texto: 'Ciento cincuenta. Hecho. Que manden el carro con los bidones y no se entretengan.', opciones: [adios] },
+        };
+      }
+      if (f.acuerdoAgua === 'compartir') return { inicio: { texto: 'El carro de Vía Muerta pasó ayer a por su agua. Traían sal y noticias de la costa. Quizá tenías razón.', opciones: [adios] } };
       return { inicio: { texto: 'Ahora tenemos agua. Ojalá no tengamos que defenderla.', opciones: [adios] } };
     }
     case 'paz': {
@@ -779,6 +897,163 @@ function dialogo(a) {
         pagado: { texto: 'Ciento cincuenta… Con esto compramos agua donde nadie nos dispare. Trato hecho, zahorí.', opciones: [{ texto: 'Largaos.', ir: null }] },
       };
     }
+    // ---------- Vía Muerta ----------
+    case 'remedios': {
+      if (!mision('q9')) {
+        return {
+          inicio: {
+            texto: 'Remedios Vega, jefa de estación. De lo que queda de ella, al menos. Esto era la Ruta del Cobre: trenes cargados de mineral hasta la costa. Ahora solo nos queda la Dolores, y la Dolores no anda.',
+            opciones: [{ texto: '¿Qué le pasa a la Dolores?', ir: 'dolores' }, { texto: '¿Quiénes sois?', ir: 'riel' }, adios],
+          },
+          riel: { texto: 'La gente del Riel: ferroviarios, mecánicos y algún que otro desesperado. Creemos que si el tren vuelve a correr, los pueblos dejarán de morirse de uno en uno.', opciones: [{ texto: '¿Qué le pasa a la Dolores?', ir: 'dolores' }, adios] },
+          dolores: {
+            texto: 'Le falta el regulador de vapor. Iba en un furgón que descarriló al norte, siguiendo la vía. Los lagartos han hecho nido allí y Rafa no puede dejar sola la estación. Tráemelo y te pagaré bien.',
+            opciones: [{ texto: 'Iré a por él.', ir: null, hacer: () => empezar('q9') }, { texto: 'Ahora no.', ir: null }],
+          },
+        };
+      }
+      if (etapa('q9') >= 0) return { inicio: { texto: etapa('q9') === 0 ? 'El furgón descarrilado está al norte, siguiendo la vía. Cuidado con los lagartos.' : 'Llévale el regulador a Ciro, al taller. Él sabrá montarlo.', opciones: [adios] } };
+      if (!mision('q10')) {
+        return {
+          inicio: {
+            texto: 'Ciro dice que el regulador encaja como un guante. Ahora la Dolores necesita agua, mucha, para llenar la caldera. Y el único pozo vivo en cien kilómetros es el de Cobreseco.',
+            opciones: [{ texto: 'Hablaré con los de Cobreseco.', ir: null, hacer: () => empezar('q10') }, { texto: 'Ahora no.', ir: null }],
+          },
+        };
+      }
+      if (etapa('q10') === 0) {
+        return {
+          inicio: {
+            texto: '¿Has hablado con Lupe? Sin agua, la Dolores es un montón de hierro muy bonito.',
+            opciones: [
+              { texto: '[Ciencia 45] En el pozo seco de los Nogales queda un hilo de agua. Con una bomba de mano os bastaría.', prueba: { hab: 'ciencia', valor: 45 }, si: () => !f.dCienciaRiel, ir: 'nogales', fallo: 'nogalesNo', hacer: () => { f.acuerdoAgua = 'nogales'; avanzar('q10', 1); } },
+              adios,
+            ],
+          },
+          nogales: { texto: '¿Un hilo de agua en los Nogales? Si es verdad, no dependemos de nadie. Mandaré a Ciro con la bomba. Eres más listo de lo que pareces, zahorí.', opciones: [adios] },
+          nogalesNo: { texto: 'No sé de qué me hablas. Habla con Lupe, en Cobreseco.', opciones: [{ texto: 'Está bien.', ir: null, hacer: () => { f.dCienciaRiel = true; } }] },
+        };
+      }
+      if (etapa('q10') === 1) {
+        const textos = {
+          compartir: 'Lupe nos manda agua de Cobreseco. Dos pueblos ayudándose: hacía años que no veía algo así.',
+          comprar: 'El agua de Cobreseco ha llegado, pagada con tus cobres. No lo olvidaremos.',
+          nogales: 'Ciro ha bajado la bomba al pozo de los Nogales y sale agua: poca, pero constante. Y no le debemos nada a nadie.',
+        };
+        return {
+          inicio: { texto: `${textos[f.acuerdoAgua] || textos.comprar} Esta noche encendemos la caldera.`, opciones: [{ texto: 'Que suene ese silbato.', ir: 'fin', hacer: () => completar('q10') }] },
+          fin: { texto: '…Escucha. Primero tose, luego coge aire… ¡ahí está! La Dolores respira.', opciones: [adios] },
+        };
+      }
+      if (hecha('q10') && !mision('q11')) {
+        return {
+          inicio: {
+            texto: 'La Dolores echa humo, y eso se ve desde muy lejos. Rafa ha visto saqueadores rondando por el oeste. Si vienen, vendrán ahora, a por la locomotora.',
+            opciones: [{ texto: 'Que vengan. Defenderé la estación.', ir: null, hacer: () => empezar('q11') }, { texto: 'Dame un momento para prepararme.', ir: null }],
+          },
+        };
+      }
+      if (etapa('q11') === 0) return { inicio: { texto: '¡Están aquí! ¡A cubierto y dispara!', opciones: [adios] } };
+      if (etapa('q11') === 1) {
+        return {
+          inicio: {
+            texto: 'Se acabó. La estación sigue en pie, y la Dolores también. Toma: era mi revólver de revisora, «El Revisor». Ahora es tuyo. Bienvenido al Riel, zahorí.',
+            opciones: [{ texto: 'Es un honor.', ir: null, hacer: () => completar('q11') }],
+          },
+        };
+      }
+      return {
+        inicio: {
+          texto: f.estacionDefendida ? 'Gracias a ti, Vía Muerta tiene futuro. Y si te sobran cobres, Sol tiene la mesa preparada.' : 'Bienvenido a Vía Muerta.',
+          opciones: [{ texto: '¿Cómo va el Riel?', ir: 'riel' }, adios],
+        },
+        riel: { texto: f.acuerdoAgua === 'compartir' ? 'Cada semana sube un carro a Cobreseco y baja otro con agua. Lupe regatea como una fiera, pero cumple.' : 'Despacio. Primero la Dolores, luego la vía hasta la costa. Un tramo cada vez.', opciones: [adios] },
+      };
+    }
+    case 'ciro': {
+      const base = [{ texto: 'Quiero comerciar.', ir: 'trueque' }];
+      if (etapa('q9') === 1) {
+        return {
+          inicio: { texto: '¿Eso es…? ¡El regulador de la Dolores! Déjamelo, que esto lo monto yo con los ojos cerrados.', opciones: [{ texto: 'Todo tuyo.', ir: 'montado', hacer: () => { quitar('regulador'); completar('q9'); } }] },
+          montado: { texto: 'Listo. Ahora le falta agua a la caldera. Habla con Remedios: ella tiene un plan, o eso dice.', opciones: [...base, adios] },
+        };
+      }
+      return {
+        inicio: {
+          texto: etapa('q9') === 0 ? 'Sin regulador la Dolores es chatarra con ruedas. Si lo encuentras, tráemelo.' : 'Taller de Ciro. Arreglo, vendo y, si me pagas, no pregunto.',
+          opciones: [
+            ...base,
+            { texto: `Repárame el arma. [${S.equipo.arma ? sistemas.precioReparacion(S.equipo.arma) : 0} cobres]`, si: () => S.equipo.arma && (S.cnd[S.equipo.arma] ?? 100) < 99, ir: 'reparada', hacer: () => sistemas.repararEnTienda(S.equipo.arma) },
+            adios,
+          ],
+        },
+        reparada: { texto: 'Como nueva. Bueno, como nueva de hace cuarenta años.', opciones: [...base, adios] },
+      };
+    }
+    case 'sol': {
+      const veto = S.casino?.vetado;
+      return {
+        inicio: {
+          texto: veto ? 'Lo siento, cariño: la casa ya te ha invitado a la última. Puedes quedarte, pero aquí tus apuestas ya no valen.' : 'El Vagón de la Suerte. Caravana o blackjack, tú eliges. La casa siempre gana… casi siempre.',
+          opciones: [
+            { texto: 'Juguemos a Caravana.', si: () => !veto, ir: 'panel:caravana' },
+            { texto: 'Juguemos al blackjack.', si: () => !veto, ir: 'panel:blackjack' },
+            { texto: '¿Cómo se juega a Caravana?', ir: 'reglas' },
+            adios,
+          ],
+        },
+        reglas: {
+          texto: 'Tres caravanas cada uno. Pon números en las tuyas hasta que sumen entre 21 y 26: entonces se venden. Cada número sigue la dirección de los anteriores, subiendo o bajando, o el mismo palo. La J quita una carta, la Q le da la vuelta a la dirección y la K dobla un número. Gana quien venda más caravanas que el otro.',
+          opciones: [{ texto: 'Entendido.', ir: 'inicio' }, adios],
+        },
+      };
+    }
+    // ---------- compañeros ----------
+    case 'rafa': {
+      const st = S.companeros.rafa || {};
+      if (!st.reclutado) {
+        if (!hecha('q9')) return { inicio: { texto: 'Vigilo la vía por la jefa. Si buscas trabajo, habla con Remedios, en la estación.', opciones: [adios] } };
+        return {
+          inicio: {
+            texto: 'Remedios dice que eres de fiar, y a mí me basta. Llevo un año mirando esta vía. Si necesitas a alguien con buena puntería, iré contigo.',
+            opciones: [{ texto: 'Ven conmigo.', ir: 'vamos', hacer: () => reclutar('rafa') }, { texto: 'Ahora no.', ir: null }],
+          },
+          vamos: { texto: 'Por fin. Tú abre camino, que yo te cubro. Y si cargas demasiado, pásame algo: tengo la espalda ancha.', opciones: [adios] },
+        };
+      }
+      return {
+        inicio: {
+          texto: st.siguiendo ? '¿Qué hacemos, zahorí?' : 'Aquí sigo, como me dijiste.',
+          opciones: [
+            st.siguiendo ? { texto: 'Espera aquí.', ir: null, hacer: () => esperarComp('rafa') } : { texto: 'Sígueme.', ir: null, hacer: () => seguirComp('rafa') },
+            { texto: 'Cambiemos de equipo.', ir: 'panel:cont:comp_rafa' },
+            { texto: 'Puedes volver a la estación.', ir: 'despedida', hacer: () => despedir('rafa') },
+            { texto: 'Nada, sigamos.', ir: null },
+          ],
+        },
+        despedida: { texto: 'Como quieras. Si me necesitas, ya sabes dónde estoy: mirando la vía.', opciones: [adios] },
+      };
+    }
+    case 'canelo': {
+      const st = S.companeros.canelo || {};
+      if (!st.reclutado) {
+        const ofrecer = (obj) => ({ texto: `Ofrecerle ${OBJETOS[obj].nombre.toLowerCase()}.`, si: () => cuenta(obj) > 0, ir: 'amigo', hacer: () => { quitar(obj); reclutar('canelo'); } });
+        return {
+          inicio: { texto: 'Un perro flaco, de color canela, te mira desde el rincón. Gruñe bajito, pero mueve la cola.', opciones: [ofrecer('cecina'), ofrecer('carne'), { texto: 'Dejarlo tranquilo.', ir: null }] },
+          amigo: { texto: 'Se lo zampa en dos bocados, te lame la mano y se pone a tu lado como si siempre hubiera sido tuyo. Se llama Canelo, o así lo llamarás desde hoy.', opciones: [adios] },
+        };
+      }
+      return {
+        inicio: {
+          texto: 'Canelo te mira con la lengua fuera, esperando.',
+          opciones: [
+            st.siguiendo ? { texto: 'Quieto. Espera aquí.', ir: null, hacer: () => esperarComp('canelo') } : { texto: '¡Vamos, Canelo!', ir: null, hacer: () => seguirComp('canelo') },
+            { texto: 'Vete a casa, Canelo.', ir: null, hacer: () => despedir('canelo') },
+            { texto: 'Buen chico.', ir: null },
+          ],
+        },
+      };
+    }
     case 'tablon': return encargos.dialogoTablon();
     case 'viajera': return encargos.dialogoViajera();
     case 'buhonero': {
@@ -817,4 +1092,5 @@ export const juego = {
   textoInteractivo, usarInteractivo, puedeHablar, dialogo,
   precio, comprar, vender, tiendaDe, truequeEfectivo, equiparArma, usarObjeto, saquear,
   cuervosHostiles, resolverCuervos, actualizar, aplicarEstadoMundo, muerte,
+  siguiendo, reclutar, despedir,
 };

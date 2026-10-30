@@ -25,7 +25,7 @@ Después abre http://localhost:8000. Cualquier otro servidor estático también 
 | E | Hablar, abrir, recoger |
 | C | Agacharse (sigilo) |
 | Q | M.I.R.A.: apuntar a partes del cuerpo |
-| 1–4 · rueda | Pistola, rifle, escopeta, pico |
+| 1–8 · rueda | Pistola, rifle, escopeta, pico, revólver, subfusil, carabina, machete |
 | R · Z | Recargar · enfundar el arma |
 | G | Lanzar dinamita |
 | H | Inyectarse suero |
@@ -37,9 +37,13 @@ Después abre http://localhost:8000. Cualquier otro servidor estático también 
 ## Qué tiene
 
 - Pueblo con edificios con interior, cinco misiones, encargos diarios en el tablón del sheriff y encuentros por los caminos.
+- Vía Muerta, la estación del Riel: una locomotora de vapor que hay que poner en marcha, tres misiones con decisiones (el trato del agua se cierra hablando, pagando o con ciencia) y el asalto de los saqueadores.
+- Compañeros: Rafa Brasas, guardia del Riel con carabina, y Canelo, el perro de la granja. Te siguen, esperan donde les digas, pelean a tu lado y dan una ventaja; a Rafa le puedes dar cosas para que las lleve.
+- Casino El Vagón de la Suerte: Caravana (el juego de cartas de New Vegas) contra Sol y blackjack, con apuestas. Si le ganas demasiado a la casa, te echan.
+- Otras ubicaciones con misión propia: la Mina del Cobre Viejo (tomada por saqueadores), la Granja de los Nogales y una caravana calcinada.
 - Los vecinos se defienden si les atacas: los armados pelean, recargan y te persiguen, y los demás huyen. Con poca vida salen corriendo, y los personajes esenciales quedan inconscientes en vez de morir.
 - Crímenes con testigos, multas y arresto: puedes pagar, pasar la noche en el calabozo, convencer al sheriff o resistirte.
-- Karma y fama con el pueblo y con los Cuervos, ventajas cada dos niveles, estado de las armas con reparación y encasquillamientos, peso, sed y cansancio en modo extremo, contenedores con dueño, fabricación en hogueras y bancos de trabajo, heridas por miembro y viaje rápido.
+- Karma y fama con el pueblo, los Cuervos y el Riel, ventajas cada dos niveles, estado de las armas con reparación y encasquillamientos, peso, sed y cansancio en modo extremo, contenedores con dueño, fabricación en hogueras y bancos de trabajo, heridas por miembro y viaje rápido.
 - Armas animadas en primera persona: recarga por tipo de arma, cerrojo, casquillos, humo, golpe con pico y dinamita con explosión.
 
 ## Créditos y licencias

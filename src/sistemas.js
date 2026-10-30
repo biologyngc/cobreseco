@@ -28,7 +28,7 @@ const MULTAS = { agresion: 40, robo: 25, asesinato: 300 };
 // Vecinos que te ven ahora mismo
 function testigos(excepto) {
   const J = G.jugador;
-  return G.actores.filter((a) => a.vecino && a !== excepto && a.vivo && a.estado !== 'inconsciente' && !a.dentro &&
+  return G.actores.filter((a) => a.vecino && !a.companero && a !== excepto && a.vivo && a.estado !== 'inconsciente' && !a.dentro &&
     a.pos.distanceTo(J.pos) < 40 && a.ve(J.centro()));
 }
 function crimen(tipo, victima) {
@@ -59,7 +59,7 @@ function crimen(tipo, victima) {
   }
   // Los armados vienen a por ti; los demás huyen
   for (const a of G.actores) {
-    if (!a.vecino || !a.vivo || a.estado === 'inconsciente' || a.dentro) continue;
+    if (!a.vecino || a.companero || !a.vivo || a.estado === 'inconsciente' || a.dentro) continue;
     if (a.pos.distanceTo(G.jugador.pos) > 60 && a !== victima) continue;
     if (a.armado) a.entrarCombate();
     else a.huir();

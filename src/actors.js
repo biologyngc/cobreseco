@@ -8,9 +8,13 @@ import { clamp } from './noise.js';
 import { crear, crearPersonaje, clipsPara, gltf } from './modelos.js';
 
 // Modelo descargado de cada personaje o tipo de enemigo (Mixamo y Sketchfab).
-const MODELO_PERSONAJE = { ines: 'mx_ines', ocana: 'mx_ocana', lupe: 'mx_lupe', paz: 'mx_paz', chema: 'mx_chema', nieves: 'mx_nieves', garza: 'mx_garza', buhonero: 'mx_cuervo1', viajera: 'mx_paz' };
+// Los de Vía Muerta reutilizan cuerpos de Cobreseco (no hay más personajes descargados)
+const MODELO_PERSONAJE = {
+  ines: 'mx_ines', ocana: 'mx_ocana', lupe: 'mx_lupe', paz: 'mx_paz', chema: 'mx_chema', nieves: 'mx_nieves', garza: 'mx_garza', buhonero: 'mx_cuervo1', viajera: 'mx_paz',
+  remedios: 'mx_nieves', ciro: 'mx_chema', sol: 'mx_ines', rafa: 'mx_garza',
+};
 // giro: el geco viene con la cabeza hacia -Z; se gira 180° para que mire hacia donde anda (+Z, como el lobo)
-const MODELO_ANIMAL = { lagarto: { n: 'geco', largo: 1.35, giro: Math.PI }, lagarto_alfa: { n: 'geco', largo: 1.35, giro: Math.PI }, perro: { n: 'lobo', largo: 1.45 }, perro_alfa: { n: 'lobo', largo: 1.45 } };
+const MODELO_ANIMAL = { lagarto: { n: 'geco', largo: 1.35, giro: Math.PI }, lagarto_alfa: { n: 'geco', largo: 1.35, giro: Math.PI }, perro: { n: 'lobo', largo: 1.45 }, perro_alfa: { n: 'lobo', largo: 1.45 }, perro_manso: { n: 'lobo', largo: 1.45 } };
 
 const cache = new Map();
 function m(color, extra = {}) {
@@ -173,6 +177,9 @@ export class Actor {
     this.vecino = !tipo;
     this.esencial = !!def.esencial;
     this.equipo = tipo ? (tipo.criatura ? 'fauna' : (tipo.faccion || 'cuervos')) : 'pueblo';
+    // Compañero: aliado del jugador, aunque no lo siga todavía
+    this.companero = !!def.companero;
+    if (this.companero) this.equipo = 'aliado';
     this.nivel = tipo ? tipo.nivel : def.nivel || 4;
     this.vidaMax = tipo ? tipo.vida : def.vida || 80;
     this.vida = this.vidaMax;
@@ -363,13 +370,149 @@ export class Actor {
     if (!vis || !this.mano) return;
     this.mano.getWorldPosition(tmp3);
     a.position.copy(this.g.worldToLocal(tmp3.clone()));
+    // Apunta a quien está atacando: el jugador, o el compañero que lo acompaña
     const J = G.jugador;
-    a.lookAt(J.pos.x, J.pos.y + (J.agachado ? 0.9 : 1.3), J.pos.z);
+    const otro = this.companero ? this.objetivoComp : this.blanco?.actor;
+    if (otro) { const p = otro.punto('torso'); a.lookAt(p.x, p.y, p.z); }
+    else a.lookAt(J.pos.x, J.pos.y + (J.agachado ? 0.9 : 1.3), J.pos.z);
+  }
+
+  // ---------- compañeros ----------
+  get reclutado() { return !!(this.companero && G.s.companeros?.[this.id]?.reclutado); }
+
+  // El compañero visto como blanco por los enemigos: lo mismo que usan del jugador
+  get comoBlanco() {
+    if (!this._blanco) {
+      const a = this;
+      this._blanco = {
+        actor: a,
+        get pos() { return a.pos; },
+        centro: () => a.punto('torso'),
+        recibirDano: (d) => a.recibirDano(d, 'torso', { deEnemigo: true }),
+        agachado: false,
+        get moviendo() { return (a.andando || 0) > 0.5; },
+        get corriendo() { return (a.andando || 0) > 3; },
+        enfundada: false,
+      };
+    }
+    return this._blanco;
+  }
+
+  // Un enemigo elige a quién atacar: al jugador o al compañero que tenga más cerca (y no cambia cada fotograma)
+  elegirBlanco(J) {
+    if (this.vecino) return J;
+    const ahora = performance.now();
+    const vale = (b) => b === J || (b?.actor?.vivo && b.actor.estado !== 'inconsciente' && b.actor.reclutado);
+    if (this.blanco && ahora < (this.blancoT || 0) && vale(this.blanco)) return this.blanco;
+    let mejor = J, mejorD = this.pos.distanceTo(J.pos);
+    for (const a of G.actores) {
+      if (!a.reclutado || !a.vivo || a.estado === 'inconsciente') continue;
+      const d = a.pos.distanceTo(this.pos) * 1.15;
+      if (d < mejorD && d < 40) { mejor = a.comoBlanco; mejorD = d; }
+    }
+    this.blanco = mejor === J ? null : mejor;
+    this.blancoT = ahora + 2500;
+    return mejor;
+  }
+
+  // Enemigo al que debe atacar el compañero: alguien hostil que ya esté peleando o en alerta cerca de ti
+  buscarEnemigo(J) {
+    let mejor = null, mejorD = Infinity;
+    for (const a of G.actores) {
+      if (a === this || a.companero || !a.vivo || a.estado === 'inconsciente' || !a.hostil || a.vecino) continue;
+      if (a.estado !== 'combate' && a.estado !== 'alerta') continue;
+      if (a.pos.distanceTo(J.pos) > 40) continue;
+      const d = a.pos.distanceTo(this.pos);
+      if (d < mejorD) { mejor = a; mejorD = d; }
+    }
+    return mejor;
+  }
+
+  actualizarCompanero(dt, J) {
+    const st = G.s.companeros[this.id];
+    // Al cargar la partida (o al reclutarlo) se coloca junto a ti o donde le dijiste que esperara
+    if (!this.colocadoComp) {
+      this.colocadoComp = true;
+      if (st.siguiendo && this.pos.distanceTo(J.pos) > 30) this.saltarJunto(J);
+      else if (!st.siguiendo && st.espera) this.pos.set(st.espera[0], G.mundo.suelo(st.espera[0], st.espera[1]), st.espera[1]);
+    }
+    // Sigue con su blanco mientras pelee; a uno que huye solo lo remata si lo tiene cerca
+    const o = this.objetivoComp;
+    const vale = o && o.vivo && o.estado !== 'inconsciente' && o.hostil && o.pos.distanceTo(J.pos) <= 45 &&
+      (o.estado === 'combate' || o.estado === 'alerta' || (o.estado === 'huida' && o.pos.distanceTo(this.pos) < 20));
+    if (!vale) this.objetivoComp = this.buscarEnemigo(J);
+    if (this.objetivoComp) {
+      this.estado = 'combate';
+      this.pelearCompanero(dt, this.objetivoComp);
+      return;
+    }
+    this.estado = 'quieto';
+    if (st.siguiendo) {
+      const d = this.pos.distanceTo(J.pos);
+      if (d > 70) this.saltarJunto(J);
+      else if (d > 4) this.perseguir(J.pos, dt, this.vel(d > 12 ? 1.25 : 0.8));
+      else if (this.pos.distanceTo(J.pos) < 3) this.mirarA(this.pos.x + Math.sin(J.yaw) * 5, this.pos.z + Math.cos(J.yaw) * 5, dt, 2);
+    } else if (st.espera) {
+      const p = tmp3.set(st.espera[0], 0, st.espera[1]);
+      if (Math.hypot(this.pos.x - p.x, this.pos.z - p.z) > 1) this.perseguir(p.clone(), dt, this.vel(0.6));
+    }
+  }
+
+  // Aparece detrás de ti (al viajar o si te alejas demasiado)
+  saltarJunto(J) {
+    const x = J.pos.x - Math.sin(J.yaw) * 2.5, z = J.pos.z - Math.cos(J.yaw) * 2.5;
+    this.pos.set(x, G.mundo.suelo(x, z), z);
+    this.rutaP = null;
+  }
+
+  pelearCompanero(dt, obj) {
+    const dist = this.pos.distanceTo(obj.pos);
+    if (this.criatura) {
+      const tp = this.tipo;
+      if (dist > tp.alcance * 0.9) this.perseguir(obj.pos, dt, this.vel(1.1));
+      else {
+        this.mirarA(obj.pos.x, obj.pos.z, dt, 10);
+        if (this.cooldown <= 0) {
+          this.cooldown = tp.cadencia;
+          this.atacando = 0.25;
+          G.audio?.mordisco(this.pos, true);
+          obj.recibirDano(tp.dano * 1.2, 'torso', { delCompanero: true });
+        }
+      }
+      return;
+    }
+    const ar = this.armaNPC;
+    if (!ar) return;
+    if (this.recargaNPC > 0) {
+      this.recargaNPC -= dt;
+      if (this.recargaNPC <= 0) this.municionNPC = ar.cargador;
+      return;
+    }
+    const visible = this.ve(obj.punto('torso'));
+    if (!visible || dist > ar.ideal + 6) this.perseguir(obj.pos, dt, this.vel(1));
+    else if (dist < ar.ideal - 8) {
+      tmp.set(this.pos.x - obj.pos.x, 0, this.pos.z - obj.pos.z).normalize();
+      this.mover(this.pos.x + tmp.x * 3, this.pos.z + tmp.z * 3, dt, this.vel(0.5), false);
+    }
+    if (visible) this.mirarA(obj.pos.x, obj.pos.z, dt, 9);
+    if (visible && this.cooldown <= 0 && dist < ar.alcance) {
+      this.cooldown = ar.cadencia * (0.8 + Math.random() * 0.5);
+      this.municionNPC--;
+      this.fogonazo = 0.06;
+      G.audio?.disparoLejano(this.pos, !!ar.rifle);
+      const boca = this.armaVisual && this.armaVisual.visible ? this.armaVisual.localToWorld(this.armaVisual.userData.boca.clone()) : this.ojos();
+      const prob = ar.precision * 1.15 * clamp(1.15 - dist / (ar.alcance * 1.1), 0.25, 1);
+      if (Math.random() < prob) {
+        obj.recibirDano(ar.dano * 1.1, Math.random() < 0.15 ? 'cabeza' : 'torso', { delCompanero: true });
+        G.efectos?.estela(boca, obj.punto('torso'));
+      } else G.efectos?.estela(boca, obj.punto('torso').add(new THREE.Vector3((Math.random() - 0.5) * 1.6, Math.random() * 0.8, (Math.random() - 0.5) * 1.6)));
+      if (this.municionNPC <= 0) this.recargaNPC = ar.recarga;
+    }
   }
 
   get vivo() { return this.estado !== 'muerto'; }
   get hostil() {
-    if (this.estado === 'inconsciente') return false;
+    if (this.estado === 'inconsciente' || this.equipo === 'aliado') return false;
     if (this.equipo === 'fauna') return true;
     // El desertor de los encargos va por libre: es hostil aunque la banda no lo sea
     if (this.equipo === 'cuervos') return !!this.def.hostil || !!G.s.flags.cuervosHostiles;
@@ -556,7 +699,15 @@ export class Actor {
       if (this.relojDeteccion <= 0) { this.detectar(0.2 - this.relojDeteccion); this.relojDeteccion = 0.2; }
     } else this.puntos = -100;
 
-    switch (this.estado) {
+    // Un compañero despedido vuelve a su sitio; si queda lejos de ti, aparece allí directamente
+    if (this.companero && this.volviendo && !this.reclutado && this.pos.distanceTo(J.pos) > 50) {
+      this.pos.set(this.def.x, G.mundo.suelo(this.def.x, this.def.z), this.def.z);
+      this.volviendo = false;
+      this.rutaP = null;
+    }
+
+    if (this.reclutado) this.actualizarCompanero(dt, J);
+    else switch (this.estado) {
       case 'quieto': this.deambular(dt); break;
       case 'alerta': {
         if (this.destino && !this.perseguir(this.destino, dt, this.vel(0.5))) { /* sigue */ }
@@ -564,7 +715,7 @@ export class Actor {
         if (this.tiempoEstado > 12) { this.estado = 'quieto'; this.conciencia = 0; }
         break;
       }
-      case 'combate': this.combatir(dt, J); break;
+      case 'combate': this.combatir(dt, this.elegirBlanco(J)); break;
       case 'arresto': this.arrestar(dt, J); break;
       case 'huida': {
         if (this.vecino) { this.huirVecino(dt, J); break; }
@@ -792,7 +943,8 @@ export class Actor {
       const dano = ar.dano * (ar.id === 'escopeta' ? clamp(1.5 - dist / 16, 0.25, 1.3) : 1);
       J.recibirDano(dano, this);
       G.efectos?.estela(boca, J.centro());
-    } else G.efectos?.zumbido(boca, true);
+    } else if (J.actor) G.efectos?.estela(boca, J.centro().add(new THREE.Vector3((Math.random() - 0.5) * 1.6, Math.random() * 0.8, (Math.random() - 0.5) * 1.6)));
+    else G.efectos?.zumbido(boca, true);
     if (this.municionNPC <= 0) {
       this.recargaNPC = ar.recarga;
       this.ladrar(FRASES.recarga, 0.5);
@@ -828,10 +980,16 @@ export class Actor {
         G.ui.flotante(this.punto(parte), { piernas: 'Pierna lisiada', brazos: 'Brazo lisiado', cabeza: 'Aturdido' }[parte], 'critico');
       }
     }
-    if (this.vecino && info.delJugador) G.juego.crimen(this.vida <= 0 && !this.esencial ? 'asesinato' : 'agresion', this);
+    // Un tiro perdido a tu compañero no es un crimen
+    if (this.vecino && info.delJugador && !this.companero) G.juego.crimen(this.vida <= 0 && !this.esencial ? 'asesinato' : 'agresion', this);
     if (this.vida <= 0) {
       if (this.esencial) this.caerInconsciente();
       else this.morir(info);
+      return final;
+    }
+    // Los compañeros aguantan y siguen a lo suyo: ni huyen ni se vuelven contra ti
+    if (this.companero) {
+      if (!this.criatura) this.ladrar(FRASES.herido, 0.3);
       return final;
     }
     if (this.equipo === 'cuervos' && !this.def.hostil && !G.s.flags.cuervosHostiles) G.juego.cuervosHostiles();
@@ -856,6 +1014,7 @@ export class Actor {
     G.audio?.muerte(this.pos, false);
     G.ui.flotante(this.punto('cabeza'), 'Inconsciente');
     if (!this.humano) this.g.rotation.z = Math.PI / 2 * this.ladoCaida;
+    if (this.reclutado) G.ui.toast(`${this.nombre} ha caído. Se levantará en un rato.`, 'peligro');
   }
 
   levantarse() {
@@ -876,7 +1035,7 @@ export class Actor {
     G.s.muertos[this.id] = true;
     G.s.bajas++;
     const xp = xpPorMuerte(this.nivel, this.criatura);
-    if (info.delJugador) G.juego.ganarXP(xp, `${this.nombre} abatido`);
+    if (info.delJugador || info.delCompanero) G.juego.ganarXP(xp, `${this.nombre} abatido`);
     G.juego.evento('muerte', { actor: this });
     G.audio?.muerte(this.pos, this.criatura);
     if (info.critico) G.ui.toast('Golpe crítico', 'critico');

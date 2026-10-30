@@ -15,6 +15,7 @@ import { juego } from './quests.js';
 import { TIENDA_PAZ } from './data.js';
 import { cargarModelos } from './modelos.js';
 import { crearBrazal } from './brazal.js';
+import { crearCasino } from './casino.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -69,6 +70,7 @@ async function iniciar(datosHot = {}) {
   G.jugador = new Jugador(camara, lienzo);
   G.brazal = crearBrazal(camara);
   G.ui = crearUI();
+  G.casino = crearCasino();
   G.actores = crearActores(escena);
 
   // ---------- calidad gráfica ----------
